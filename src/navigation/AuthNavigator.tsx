@@ -1,0 +1,33 @@
+/**
+ * Navegação de autenticação
+ */
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
+import ChildLoginScreen from '../screens/auth/ChildLoginScreen';
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ChildLogin: undefined;
+};
+
+const Stack = createStackNavigator<AuthStackParamList>();
+
+const AuthNavigator: React.FC = () => {
+  return (
+    <Stack.Navigator
+      initialRouteName="Login"
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="ChildLogin" component={ChildLoginScreen} />
+    </Stack.Navigator>
+  );
+};
+
+export default AuthNavigator;
