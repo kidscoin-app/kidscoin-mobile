@@ -298,23 +298,27 @@ const ManageTasksScreen: React.FC = () => {
             <Text style={styles.label}>Categoria</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.categoryRow}>
-                {CATEGORIES.map((cat) => (
-                  <Chip
-                    key={cat.value}
-                    selected={category === cat.value}
-                    onPress={() => setCategory(cat.value)}
-                    style={[
-                      styles.chip,
-                      category === cat.value && styles.chipSelected,
-                    ]}
-                    selectedColor={COLORS.common.white}
-                    icon={cat.icon}
-                    mode={category === cat.value ? 'flat' : 'outlined'}
-                    textStyle={category === cat.value && styles.chipTextSelected}
-                  >
-                    {cat.label}
-                  </Chip>
-                ))}
+                {CATEGORIES.map((cat) => {
+                  const isSelected = category === cat.value;
+                  return (
+                    <Chip
+                      key={cat.value}
+                      selected={isSelected}
+                      onPress={() => setCategory(cat.value)}
+                      style={[
+                        styles.chip,
+                        isSelected && styles.chipSelected,
+                      ]}
+                      icon={cat.icon}
+                      mode={isSelected ? 'flat' : 'outlined'}
+                      textStyle={
+                        isSelected ? styles.chipTextSelected : styles.chipTextUnselected
+                      }
+                    >
+                      {cat.label}
+                    </Chip>
+                  );
+                })}
               </View>
             </ScrollView>
 
@@ -336,10 +340,11 @@ const ManageTasksScreen: React.FC = () => {
                         styles.childChip,
                         isSelected && styles.chipSelected,
                       ]}
-                      selectedColor={COLORS.common.white}
                       icon="account"
                       mode={isSelected ? 'flat' : 'outlined'}
-                      textStyle={isSelected && styles.chipTextSelected}
+                      textStyle={
+                        isSelected ? styles.chipTextSelected : styles.chipTextUnselected
+                      }
                     >
                       {child.fullName}
                     </Chip>
@@ -546,6 +551,9 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: COLORS.common.white,
     fontWeight: '600',
+  },
+  chipTextUnselected: {
+    color: COLORS.common.text,
   },
   childrenList: {
     flexDirection: 'row',
