@@ -287,7 +287,7 @@ const ManageTasksScreen: React.FC = () => {
                 mode="outlined"
                 keyboardType="numeric"
                 style={[styles.input, styles.halfInput]}
-                left={<TextInput.Icon icon="coin" />}
+                left={<TextInput.Icon icon="currency-usd" />}
                 placeholder="10"
               />
 
