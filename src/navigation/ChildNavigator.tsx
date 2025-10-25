@@ -5,7 +5,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ChildDashboardScreen from '../screens/child/ChildDashboardScreen';
-import TasksListScreen from '../screens/child/TasksListScreen';
+import ChildTasksScreen from '../screens/child/ChildTasksScreen';
 import RewardsShopScreen from '../screens/child/RewardsShopScreen';
 import ProfileScreen from '../screens/child/ProfileScreen';
 import { COLORS } from '../utils/constants';
@@ -47,7 +47,7 @@ const ChildNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Tasks"
-        component={TasksListScreen}
+        component={ChildTasksScreen}
         options={{
           title: 'Tarefas',
           tabBarIcon: ({ color, size }) => (

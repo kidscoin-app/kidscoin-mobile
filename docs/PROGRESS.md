@@ -71,13 +71,14 @@ O aplicativo mobile foi desenvolvido do zero usando **React Native + Expo** com 
 - ✅ Atualização após criação
 
 **Comportamento Especial:**
-- ℹ️ Email gerado automaticamente pelo backend no formato: `nome-da-crianca@child.local`
-- ℹ️ Mensagem de sucesso mostra o email gerado para o usuário
+- ℹ️ ~~Email gerado automaticamente pelo backend~~ → **Username definido pelo pai**
+- ℹ️ Criança faz login com username + PIN
 
 **Commits:**
 - `feat: implementa formulário de criação de crianças`
 - `fix: adiciona campo idade obrigatório`
 - `fix: remove campo email (backend gera automaticamente)`
+- `feat: adiciona suporte a username para criação e login de crianças`
 
 ---
 

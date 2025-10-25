@@ -5,7 +5,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ParentDashboardScreen from '../screens/parent/ParentDashboardScreen';
-import CreateTaskScreen from '../screens/parent/CreateTaskScreen';
+import ManageTasksScreen from '../screens/parent/ManageTasksScreen';
 import CreateRewardScreen from '../screens/parent/CreateRewardScreen';
 import ManageChildrenScreen from '../screens/parent/ManageChildrenScreen';
 import { COLORS } from '../utils/constants';
@@ -47,7 +47,7 @@ const ParentNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Tasks"
-        component={CreateTaskScreen}
+        component={ManageTasksScreen}
         options={{
           title: 'Tarefas',
           tabBarIcon: ({ color, size }) => (
