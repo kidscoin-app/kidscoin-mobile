@@ -74,10 +74,14 @@ const ManageTasksScreen: React.FC = () => {
   const loadTasks = async () => {
     setLoadingTasks(true);
     try {
+      console.log('🔄 Carregando tarefas...');
       const data = await taskService.getTasks();
+      console.log('✅ Tarefas recebidas:', data.length, 'tarefas');
+      console.log('📋 Dados:', JSON.stringify(data, null, 2));
       setTasks(data);
     } catch (err: any) {
-      console.error('Erro ao carregar tarefas:', err);
+      console.error('❌ Erro ao carregar tarefas:', err);
+      console.error('Detalhes:', err.response?.data || err.message);
     } finally {
       setLoadingTasks(false);
     }
@@ -126,7 +130,8 @@ const ManageTasksScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      await taskService.createTask({
+      console.log('📝 Criando tarefa...');
+      const createdTask = await taskService.createTask({
         title: title.trim(),
         description: description.trim() || undefined,
         coinValue: parseInt(coinValue),
@@ -135,6 +140,7 @@ const ManageTasksScreen: React.FC = () => {
         childrenIds: selectedChildren,
       });
 
+      console.log('✅ Tarefa criada:', createdTask);
       setSuccess('Tarefa criada com sucesso!');
 
       // Limpar formulário
@@ -145,8 +151,10 @@ const ManageTasksScreen: React.FC = () => {
       setSelectedChildren([]);
 
       // Recarregar tarefas
+      console.log('🔄 Recarregando lista de tarefas...');
       await loadTasks();
     } catch (err: any) {
+      console.error('❌ Erro ao criar tarefa:', err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
