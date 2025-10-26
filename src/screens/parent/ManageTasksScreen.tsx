@@ -1,42 +1,40 @@
 /**
  * Tela para gerenciar tarefas (Parent)
  */
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import {
-  Text,
-  TextInput,
   Button,
   Card,
-  Divider,
-  List,
-  Snackbar,
   Chip,
   Dialog,
-  Portal,
-  RadioButton,
+  Divider,
   IconButton,
-} from 'react-native-paper';
-import { taskService, userService, getErrorMessage } from '../../services';
-import { TaskAssignment, TaskCategory, User } from '../../types';
-import { COLORS } from '../../utils/constants';
+  Portal,
+  Snackbar,
+  Text,
+  TextInput,
+} from "react-native-paper";
+import { getErrorMessage, taskService, userService } from "../../services";
+import { TaskAssignment, TaskCategory, User } from "../../types";
+import { COLORS } from "../../utils/constants";
 
 // Categorias disponíveis
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
-  { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom' },
-  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant' },
-  { value: 'ESTUDOS', label: 'Estudos', icon: 'book-open' },
-  { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart' },
-  { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal' },
+  { value: "LIMPEZA", label: "Limpeza", icon: "broom" },
+  { value: "ORGANIZACAO", label: "Organização", icon: "package-variant" },
+  { value: "ESTUDOS", label: "Estudos", icon: "book-open" },
+  { value: "CUIDADOS", label: "Cuidados", icon: "heart" },
+  { value: "OUTRAS", label: "Outras", icon: "dots-horizontal" },
 ];
 
 const ManageTasksScreen: React.FC = () => {
   // Formulário
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [coinValue, setCoinValue] = useState('');
-  const [xpValue, setXpValue] = useState('');
-  const [category, setCategory] = useState<TaskCategory>('LIMPEZA');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [coinValue, setCoinValue] = useState("");
+  const [xpValue, setXpValue] = useState("");
+  const [category, setCategory] = useState<TaskCategory>("LIMPEZA");
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
 
   // Estados
@@ -44,13 +42,15 @@ const ManageTasksScreen: React.FC = () => {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [children, setChildren] = useState<User[]>([]);
   const [tasks, setTasks] = useState<TaskAssignment[]>([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Dialog de rejeição
   const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
-  const [rejectingTask, setRejectingTask] = useState<TaskAssignment | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectingTask, setRejectingTask] = useState<TaskAssignment | null>(
+    null
+  );
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Dialog de exclusão
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -69,7 +69,7 @@ const ManageTasksScreen: React.FC = () => {
       const data = await userService.getChildren();
       setChildren(data);
     } catch (err: any) {
-      console.error('Erro ao carregar crianças:', err);
+      console.error("Erro ao carregar crianças:", err);
     }
   };
 
@@ -79,14 +79,14 @@ const ManageTasksScreen: React.FC = () => {
   const loadTasks = async () => {
     setLoadingTasks(true);
     try {
-      console.log('🔄 Carregando tarefas...');
+      // console.log('🔄 Carregando tarefas...');
       const data = await taskService.getTasks();
-      console.log('✅ Tarefas recebidas:', data.length, 'tarefas');
-      console.log('📋 Dados:', JSON.stringify(data, null, 2));
+      // console.log('✅ Tarefas recebidas:', data.length, 'tarefas');
+      // console.log('📋 Dados:', JSON.stringify(data, null, 2));
       setTasks(data);
     } catch (err: any) {
-      console.error('❌ Erro ao carregar tarefas:', err);
-      console.error('Detalhes:', err.response?.data || err.message);
+      console.error("❌ Erro ao carregar tarefas:", err);
+      console.error("Detalhes:", err.response?.data || err.message);
     } finally {
       setLoadingTasks(false);
     }
@@ -97,24 +97,24 @@ const ManageTasksScreen: React.FC = () => {
    */
   const validateForm = (): boolean => {
     if (!title.trim()) {
-      setError('Preencha o título da tarefa');
+      setError("Preencha o título da tarefa");
       return false;
     }
 
     const coins = parseInt(coinValue);
     if (isNaN(coins) || coins <= 0) {
-      setError('Valor de moedas deve ser maior que zero');
+      setError("Valor de moedas deve ser maior que zero");
       return false;
     }
 
     const xp = parseInt(xpValue);
     if (isNaN(xp) || xp <= 0) {
-      setError('Valor de XP deve ser maior que zero');
+      setError("Valor de XP deve ser maior que zero");
       return false;
     }
 
     if (selectedChildren.length === 0) {
-      setError('Selecione pelo menos uma criança');
+      setError("Selecione pelo menos uma criança");
       return false;
     }
 
@@ -125,8 +125,8 @@ const ManageTasksScreen: React.FC = () => {
    * Criar tarefa
    */
   const handleCreateTask = async () => {
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     if (!validateForm()) {
       return;
@@ -135,7 +135,7 @@ const ManageTasksScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('📝 Criando tarefa...');
+      console.log("📝 Criando tarefa...");
       const createdTask = await taskService.createTask({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -145,21 +145,21 @@ const ManageTasksScreen: React.FC = () => {
         childrenIds: selectedChildren,
       });
 
-      console.log('✅ Tarefa criada:', createdTask);
-      setSuccess('Tarefa criada com sucesso!');
+      console.log("✅ Tarefa criada:", createdTask);
+      setSuccess("Tarefa criada com sucesso!");
 
       // Limpar formulário
-      setTitle('');
-      setDescription('');
-      setCoinValue('');
-      setXpValue('');
+      setTitle("");
+      setDescription("");
+      setCoinValue("");
+      setXpValue("");
       setSelectedChildren([]);
 
       // Recarregar tarefas
-      console.log('🔄 Recarregando lista de tarefas...');
+      console.log("🔄 Recarregando lista de tarefas...");
       await loadTasks();
     } catch (err: any) {
-      console.error('❌ Erro ao criar tarefa:', err);
+      console.error("❌ Erro ao criar tarefa:", err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -172,7 +172,7 @@ const ManageTasksScreen: React.FC = () => {
   const handleApprove = async (assignmentId: string) => {
     try {
       await taskService.approveTask(assignmentId);
-      setSuccess('Tarefa aprovada! Moedas e XP creditados.');
+      setSuccess("Tarefa aprovada! Moedas e XP creditados.");
       await loadTasks();
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -184,7 +184,7 @@ const ManageTasksScreen: React.FC = () => {
    */
   const openRejectDialog = (task: TaskAssignment) => {
     setRejectingTask(task);
-    setRejectionReason('');
+    setRejectionReason("");
     setRejectDialogVisible(true);
   };
 
@@ -200,7 +200,7 @@ const ManageTasksScreen: React.FC = () => {
       await taskService.rejectTask(rejectingTask.id, {
         rejectionReason: rejectionReason.trim(),
       });
-      setSuccess('Tarefa rejeitada.');
+      setSuccess("Tarefa rejeitada.");
       setRejectDialogVisible(false);
       setRejectingTask(null);
       await loadTasks();
@@ -227,7 +227,7 @@ const ManageTasksScreen: React.FC = () => {
 
     try {
       await taskService.deleteTask(deletingTask.id);
-      setSuccess('Tarefa excluída com sucesso.');
+      setSuccess("Tarefa excluída com sucesso.");
       setDeleteDialogVisible(false);
       setDeletingTask(null);
       await loadTasks();
@@ -252,13 +252,13 @@ const ManageTasksScreen: React.FC = () => {
    */
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING':
+      case "PENDING":
         return COLORS.common.warning;
-      case 'COMPLETED':
+      case "COMPLETED":
         return COLORS.child.primary;
-      case 'APPROVED':
+      case "APPROVED":
         return COLORS.child.success;
-      case 'REJECTED':
+      case "REJECTED":
         return COLORS.common.error;
       default:
         return COLORS.common.textLight;
@@ -270,14 +270,14 @@ const ManageTasksScreen: React.FC = () => {
    */
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return 'Pendente';
-      case 'COMPLETED':
-        return 'Aguardando Aprovação';
-      case 'APPROVED':
-        return 'Aprovada';
-      case 'REJECTED':
-        return 'Rejeitada';
+      case "PENDING":
+        return "Pendente";
+      case "COMPLETED":
+        return "Aguardando Aprovação";
+      case "APPROVED":
+        return "Aprovada";
+      case "REJECTED":
+        return "Rejeitada";
       default:
         return status;
     }
@@ -292,10 +292,10 @@ const ManageTasksScreen: React.FC = () => {
    */
   const getSortedTasks = () => {
     const priorityMap: { [key: string]: number } = {
-      COMPLETED: 1,  // Aguardando aprovação do pai
-      REJECTED: 2,   // Criança precisa refazer
-      PENDING: 3,    // Ainda não foi feita
-      APPROVED: 4,   // Já foi tratada
+      COMPLETED: 1, // Aguardando aprovação do pai
+      REJECTED: 2, // Criança precisa refazer
+      PENDING: 3, // Ainda não foi feita
+      APPROVED: 4, // Já foi tratada
     };
 
     return [...tasks].sort((a, b) => {
@@ -367,14 +367,13 @@ const ManageTasksScreen: React.FC = () => {
                       key={cat.value}
                       selected={isSelected}
                       onPress={() => setCategory(cat.value)}
-                      style={[
-                        styles.chip,
-                        isSelected && styles.chipSelected,
-                      ]}
+                      style={[styles.chip, isSelected && styles.chipSelected]}
                       icon={cat.icon}
-                      mode={isSelected ? 'flat' : 'outlined'}
+                      mode={isSelected ? "flat" : "outlined"}
                       textStyle={
-                        isSelected ? styles.chipTextSelected : styles.chipTextUnselected
+                        isSelected
+                          ? styles.chipTextSelected
+                          : styles.chipTextUnselected
                       }
                     >
                       {cat.label}
@@ -403,9 +402,11 @@ const ManageTasksScreen: React.FC = () => {
                         isSelected && styles.chipSelected,
                       ]}
                       icon="account"
-                      mode={isSelected ? 'flat' : 'outlined'}
+                      mode={isSelected ? "flat" : "outlined"}
                       textStyle={
-                        isSelected ? styles.chipTextSelected : styles.chipTextUnselected
+                        isSelected
+                          ? styles.chipTextSelected
+                          : styles.chipTextUnselected
                       }
                     >
                       {child.fullName}
@@ -450,7 +451,11 @@ const ManageTasksScreen: React.FC = () => {
                         <Chip
                           style={[
                             styles.statusChip,
-                            { backgroundColor: getStatusColor(assignment.status) },
+                            {
+                              backgroundColor: getStatusColor(
+                                assignment.status
+                              ),
+                            },
                           ]}
                           textStyle={styles.statusText}
                         >
@@ -489,7 +494,7 @@ const ManageTasksScreen: React.FC = () => {
                       </View>
 
                       {/* Botões de ação para tarefas COMPLETED */}
-                      {assignment.status === 'COMPLETED' && (
+                      {assignment.status === "COMPLETED" && (
                         <View style={styles.actionButtons}>
                           <Button
                             mode="contained"
@@ -513,7 +518,7 @@ const ManageTasksScreen: React.FC = () => {
                       )}
 
                       {/* Mostrar motivo da rejeição */}
-                      {assignment.status === 'REJECTED' &&
+                      {assignment.status === "REJECTED" &&
                         assignment.rejectionReason && (
                           <Text style={styles.rejectionReason}>
                             ❌ Motivo: {assignment.rejectionReason}
@@ -521,7 +526,9 @@ const ManageTasksScreen: React.FC = () => {
                         )}
                     </View>
 
-                    {index < tasks.length - 1 && <Divider style={styles.divider} />}
+                    {index < tasks.length - 1 && (
+                      <Divider style={styles.divider} />
+                    )}
                   </React.Fragment>
                 ))}
               </View>
@@ -532,7 +539,10 @@ const ManageTasksScreen: React.FC = () => {
 
       {/* Dialog de rejeição */}
       <Portal>
-        <Dialog visible={rejectDialogVisible} onDismiss={() => setRejectDialogVisible(false)}>
+        <Dialog
+          visible={rejectDialogVisible}
+          onDismiss={() => setRejectDialogVisible(false)}
+        >
           <Dialog.Title>Rejeitar Tarefa</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
@@ -549,7 +559,9 @@ const ManageTasksScreen: React.FC = () => {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setRejectDialogVisible(false)}>Cancelar</Button>
+            <Button onPress={() => setRejectDialogVisible(false)}>
+              Cancelar
+            </Button>
             <Button
               onPress={handleReject}
               disabled={!rejectionReason.trim()}
@@ -561,22 +573,30 @@ const ManageTasksScreen: React.FC = () => {
         </Dialog>
 
         {/* Dialog de exclusão */}
-        <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
+        <Dialog
+          visible={deleteDialogVisible}
+          onDismiss={() => setDeleteDialogVisible(false)}
+        >
           <Dialog.Title>Excluir Tarefa</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
-              Tem certeza que deseja excluir a tarefa "{deletingTask?.task.title}"?
+              Tem certeza que deseja excluir a tarefa "
+              {deletingTask?.task.title}"?
             </Text>
-            <Text style={[styles.dialogText, { fontSize: 13, color: COLORS.common.textLight }]}>
+            <Text
+              style={[
+                styles.dialogText,
+                { fontSize: 13, color: COLORS.common.textLight },
+              ]}
+            >
               Esta ação não pode ser desfeita.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDeleteDialogVisible(false)}>Cancelar</Button>
-            <Button
-              onPress={handleDelete}
-              textColor={COLORS.common.error}
-            >
+            <Button onPress={() => setDeleteDialogVisible(false)}>
+              Cancelar
+            </Button>
+            <Button onPress={handleDelete} textColor={COLORS.common.error}>
               Excluir
             </Button>
           </Dialog.Actions>
@@ -586,7 +606,7 @@ const ManageTasksScreen: React.FC = () => {
       {/* Snackbars */}
       <Snackbar
         visible={!!error}
-        onDismiss={() => setError('')}
+        onDismiss={() => setError("")}
         duration={3000}
         style={styles.errorSnackbar}
       >
@@ -595,7 +615,7 @@ const ManageTasksScreen: React.FC = () => {
 
       <Snackbar
         visible={!!success}
-        onDismiss={() => setSuccess('')}
+        onDismiss={() => setSuccess("")}
         duration={3000}
         style={styles.successSnackbar}
       >
@@ -619,7 +639,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.common.text,
     marginBottom: 15,
   },
@@ -627,20 +647,20 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   halfInput: {
-    width: '48%',
+    width: "48%",
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.common.text,
     marginBottom: 10,
   },
   categoryRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 15,
   },
   chip: {
@@ -651,14 +671,14 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: COLORS.common.white,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   chipTextUnselected: {
     color: COLORS.common.text,
   },
   childrenList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginBottom: 15,
   },
   childChip: {
@@ -671,22 +691,22 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: COLORS.common.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 20,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   taskItem: {
     paddingVertical: 12,
   },
   taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   taskTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.common.text,
     flex: 1,
   },
@@ -698,8 +718,8 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusText: {
     fontSize: 12,
@@ -713,13 +733,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   taskRewardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   taskReward: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 15,
   },
   taskRewardText: {
@@ -727,7 +747,7 @@ const styles = StyleSheet.create({
     color: COLORS.common.text,
   },
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
   approveButton: {
@@ -740,7 +760,7 @@ const styles = StyleSheet.create({
   rejectionReason: {
     fontSize: 13,
     color: COLORS.common.error,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginTop: 8,
   },
   deleteButton: {
