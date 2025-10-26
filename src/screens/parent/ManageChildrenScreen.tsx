@@ -229,18 +229,23 @@ const ManageChildrenScreen: React.FC = () => {
               </Text>
             ) : (
               <View>
-                {children.map((child, index) => (
-                  <React.Fragment key={child.id}>
-                    <List.Item
-                      title={child.fullName}
-                      description={child.email}
-                      left={(props) => <List.Icon {...props} icon="account-child" />}
-                      titleStyle={styles.childName}
-                      descriptionStyle={styles.childEmail}
-                    />
-                    {index < children.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
+                {children.map((child, index) => {
+                  // Extrair username do email se não vier do backend
+                  const username = child.username || child.email.split('@')[0];
+
+                  return (
+                    <React.Fragment key={child.id}>
+                      <List.Item
+                        title={child.fullName}
+                        description={`@${username}`}
+                        left={(props) => <List.Icon {...props} icon="account-child" />}
+                        titleStyle={styles.childName}
+                        descriptionStyle={styles.childUsername}
+                      />
+                      {index < children.length - 1 && <Divider />}
+                    </React.Fragment>
+                  );
+                })}
               </View>
             )}
           </Card.Content>
@@ -317,9 +322,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.common.text,
   },
-  childEmail: {
+  childUsername: {
     fontSize: 14,
-    color: COLORS.common.textLight,
+    color: COLORS.parent.primary,
+    fontWeight: '500',
   },
   errorSnackbar: {
     backgroundColor: COLORS.common.error,

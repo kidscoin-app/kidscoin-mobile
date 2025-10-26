@@ -11,6 +11,7 @@ export interface User {
   role: UserRole;
   familyId: string;
   avatarUrl: string | null;
+  username?: string; // Username da criança (usado para login)
 }
 
 export interface RegisterData {
