@@ -28,6 +28,14 @@ class UserService {
     const response = await api.get<User>('/users/me');
     return response.data;
   }
+
+  /**
+   * Deletar criança (PARENT)
+   * ATENÇÃO: Ação irreversível - deleta tudo da criança
+   */
+  async deleteChild(childId: string): Promise<void> {
+    await api.delete(`/users/children/${childId}`);
+  }
 }
 
 export default new UserService();

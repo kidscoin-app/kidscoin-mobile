@@ -11,6 +11,9 @@ import {
   Divider,
   List,
   Snackbar,
+  IconButton,
+  Dialog,
+  Portal,
 } from 'react-native-paper';
 import { userService, getErrorMessage } from '../../services';
 import { User } from '../../types';
@@ -26,6 +29,10 @@ const ManageChildrenScreen: React.FC = () => {
   const [children, setChildren] = useState<User[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Dialog de exclusão
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deletingChild, setDeletingChild] = useState<User | null>(null);
 
   // Carregar lista de crianças ao montar componente
   useEffect(() => {
@@ -142,6 +149,33 @@ const ManageChildrenScreen: React.FC = () => {
     }
   };
 
+  /**
+   * Abrir dialog de exclusão
+   */
+  const openDeleteDialog = (child: User) => {
+    setDeletingChild(child);
+    setDeleteDialogVisible(true);
+  };
+
+  /**
+   * Deletar criança
+   */
+  const handleDeleteChild = async () => {
+    if (!deletingChild) {
+      return;
+    }
+
+    try {
+      await userService.deleteChild(deletingChild.id);
+      setSuccess(`${deletingChild.fullName} foi excluído(a) com sucesso.`);
+      setDeleteDialogVisible(false);
+      setDeletingChild(null);
+      await loadChildren();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
@@ -248,6 +282,14 @@ const ManageChildrenScreen: React.FC = () => {
                         title={child.fullName}
                         description={`@${username}`}
                         left={(props) => <List.Icon {...props} icon="account-child" />}
+                        right={(props) => (
+                          <IconButton
+                            icon="delete"
+                            iconColor={COLORS.common.error}
+                            size={20}
+                            onPress={() => openDeleteDialog(child)}
+                          />
+                        )}
                         titleStyle={styles.childName}
                         descriptionStyle={styles.childUsername}
                       />
@@ -260,6 +302,42 @@ const ManageChildrenScreen: React.FC = () => {
           </Card.Content>
         </Card>
       </View>
+
+      {/* Dialog de exclusão de criança */}
+      <Portal>
+        <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
+          <Dialog.Title style={styles.dialogTitle}>⚠️ Excluir Criança</Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Tem certeza que deseja excluir <Text style={styles.dialogChildName}>{deletingChild?.fullName}</Text>?
+            </Text>
+            <Text style={[styles.dialogText, styles.dialogWarning]}>
+              ⚠️ ATENÇÃO: Esta é uma ação IRREVERSÍVEL!
+            </Text>
+            <Text style={styles.dialogWarningList}>
+              Será permanentemente excluído:
+            </Text>
+            <Text style={styles.dialogWarningItem}>• Todas as tarefas atribuídas</Text>
+            <Text style={styles.dialogWarningItem}>• Saldo de moedas</Text>
+            <Text style={styles.dialogWarningItem}>• Poupança</Text>
+            <Text style={styles.dialogWarningItem}>• Badges e conquistas</Text>
+            <Text style={styles.dialogWarningItem}>• Histórico completo</Text>
+            <Text style={[styles.dialogText, styles.dialogFinalWarning]}>
+              Esta ação NÃO pode ser desfeita!
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteDialogVisible(false)}>Cancelar</Button>
+            <Button
+              onPress={handleDeleteChild}
+              textColor={COLORS.common.error}
+              buttonColor="transparent"
+            >
+              Excluir Permanentemente
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       {/* Snackbar de erro */}
       <Snackbar
@@ -335,6 +413,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.parent.primary,
     fontWeight: '500',
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  dialogText: {
+    fontSize: 14,
+    color: COLORS.common.text,
+    marginBottom: 10,
+  },
+  dialogChildName: {
+    fontWeight: 'bold',
+    color: COLORS.parent.primary,
+  },
+  dialogWarning: {
+    color: COLORS.common.error,
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  dialogWarningList: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.common.text,
+    marginBottom: 8,
+  },
+  dialogWarningItem: {
+    fontSize: 13,
+    color: COLORS.common.textLight,
+    marginLeft: 10,
+    marginBottom: 5,
+  },
+  dialogFinalWarning: {
+    color: COLORS.common.error,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 15,
+    fontSize: 14,
   },
   errorSnackbar: {
     backgroundColor: COLORS.common.error,
