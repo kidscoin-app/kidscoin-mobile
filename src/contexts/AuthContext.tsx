@@ -35,12 +35,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const storedUser = await authService.getStoredUser();
       if (storedUser) {
+        console.log('👤 Usuário armazenado:', storedUser);
         // Valida o token buscando dados atualizados
         const currentUser = await authService.getMe();
+        console.log('✅ Usuário validado:', currentUser);
         setUser(currentUser);
       }
     } catch (error) {
-      console.log('Token inválido ou expirado:', error);
+      console.log('❌ Token inválido ou expirado:', error);
       await authService.logout();
       setUser(null);
     } finally {

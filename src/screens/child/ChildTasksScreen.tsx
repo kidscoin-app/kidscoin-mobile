@@ -37,9 +37,13 @@ const ChildTasksScreen: React.FC = () => {
   const loadTasks = async () => {
     setLoading(true);
     try {
+      console.log('👶 Criança carregando tarefas...');
       const data = await taskService.getTasks();
+      console.log('✅ Tarefas recebidas:', data.length);
       setTasks(data);
     } catch (err: any) {
+      console.error('❌ Erro ao carregar tarefas da criança:', err);
+      console.error('Detalhes:', err.response?.data);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
