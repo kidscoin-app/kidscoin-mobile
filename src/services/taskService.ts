@@ -56,6 +56,13 @@ class TaskService {
     );
     return response.data;
   }
+
+  /**
+   * Deletar tarefa (PARENT)
+   */
+  async deleteTask(assignmentId: string): Promise<void> {
+    await api.delete(`/tasks/${assignmentId}`);
+  }
 }
 
 export default new TaskService();

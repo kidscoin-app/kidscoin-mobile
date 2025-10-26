@@ -15,6 +15,7 @@ import {
   Dialog,
   Portal,
   RadioButton,
+  IconButton,
 } from 'react-native-paper';
 import { taskService, userService, getErrorMessage } from '../../services';
 import { TaskAssignment, TaskCategory, User } from '../../types';
@@ -50,6 +51,10 @@ const ManageTasksScreen: React.FC = () => {
   const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
   const [rejectingTask, setRejectingTask] = useState<TaskAssignment | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Dialog de exclusão
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deletingTask, setDeletingTask] = useState<TaskAssignment | null>(null);
 
   useEffect(() => {
     loadChildren();
@@ -198,6 +203,33 @@ const ManageTasksScreen: React.FC = () => {
       setSuccess('Tarefa rejeitada.');
       setRejectDialogVisible(false);
       setRejectingTask(null);
+      await loadTasks();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  /**
+   * Abrir dialog de exclusão
+   */
+  const openDeleteDialog = (task: TaskAssignment) => {
+    setDeletingTask(task);
+    setDeleteDialogVisible(true);
+  };
+
+  /**
+   * Deletar tarefa
+   */
+  const handleDelete = async () => {
+    if (!deletingTask) {
+      return;
+    }
+
+    try {
+      await taskService.deleteTask(deletingTask.id);
+      setSuccess('Tarefa excluída com sucesso.');
+      setDeleteDialogVisible(false);
+      setDeletingTask(null);
       await loadTasks();
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -476,6 +508,17 @@ const ManageTasksScreen: React.FC = () => {
                             ❌ Motivo: {assignment.rejectionReason}
                           </Text>
                         )}
+
+                      {/* Botão de excluir */}
+                      <View style={styles.deleteButtonContainer}>
+                        <IconButton
+                          icon="delete"
+                          iconColor={COLORS.common.error}
+                          size={20}
+                          onPress={() => openDeleteDialog(assignment)}
+                          style={styles.deleteButton}
+                        />
+                      </View>
                     </View>
 
                     {index < tasks.length - 1 && <Divider style={styles.divider} />}
@@ -513,6 +556,28 @@ const ManageTasksScreen: React.FC = () => {
               textColor={COLORS.common.error}
             >
               Rejeitar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Dialog de exclusão */}
+        <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
+          <Dialog.Title>Excluir Tarefa</Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Tem certeza que deseja excluir a tarefa "{deletingTask?.task.title}"?
+            </Text>
+            <Text style={[styles.dialogText, { fontSize: 13, color: COLORS.common.textLight }]}>
+              Esta ação não pode ser desfeita.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteDialogVisible(false)}>Cancelar</Button>
+            <Button
+              onPress={handleDelete}
+              textColor={COLORS.common.error}
+            >
+              Excluir
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -612,6 +677,8 @@ const styles = StyleSheet.create({
   },
   taskItem: {
     paddingVertical: 12,
+    position: 'relative',
+    paddingBottom: 40, // Espaço para o botão de excluir
   },
   taskHeader: {
     flexDirection: 'row',
@@ -672,6 +739,14 @@ const styles = StyleSheet.create({
     color: COLORS.common.error,
     fontStyle: 'italic',
     marginTop: 8,
+  },
+  deleteButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+  },
+  deleteButton: {
+    margin: 0,
   },
   divider: {
     marginVertical: 12,
