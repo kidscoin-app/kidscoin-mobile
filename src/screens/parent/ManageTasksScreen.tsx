@@ -678,7 +678,6 @@ const styles = StyleSheet.create({
   taskItem: {
     paddingVertical: 12,
     position: 'relative',
-    paddingBottom: 40, // Espaço para o botão de excluir
   },
   taskHeader: {
     flexDirection: 'row',
@@ -742,8 +741,8 @@ const styles = StyleSheet.create({
   },
   deleteButtonContainer: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: -8,
+    left: -8,
   },
   deleteButton: {
     margin: 0,
