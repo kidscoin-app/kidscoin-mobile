@@ -1,7 +1,7 @@
 # 📊 PROGRESSO DO DESENVOLVIMENTO MOBILE - KidsCoins
 
-**Data:** 25 de Outubro de 2025
-**Status:** ✅ Sistema de tarefas completo (frontend) + Backend precisa ajustes
+**Data:** 26 de Outubro de 2025
+**Status:** ✅ Sistema de tarefas completo com melhorias de UX
 
 ---
 
@@ -9,14 +9,38 @@
 
 O aplicativo mobile foi desenvolvido do zero usando **React Native + Expo** com **TypeScript**. Toda a estrutura base está implementada, incluindo autenticação, navegação, integração com API backend, e **sistema completo de tarefas**.
 
-**Principais conquistas desta sessão:**
-- ✅ **Telas de tarefas** 100% funcionais (criar, listar, completar, aprovar/rejeitar)
+**Últimas melhorias:**
+- ✅ **Priorização inteligente** - Tarefas aguardando aprovação no topo
+- ✅ **Alinhamento visual** - Status centralizado nos chips
+- ✅ **Mais informações** - Descrição da tarefa nos cards
 - ✅ **UX refinada** com feedback visual em chips e formulários
-- ✅ **Sistema de login unificado** (emailOrUsername)
-- ✅ **Debugging avançado** com logs para identificar problemas backend
-- ⚠️ **Backend precisa ajustes** (TaskAssignments, DTOs, username no response)
 
-**Resultado:** Sistema de tarefas funcional no frontend, aguardando correções no backend.
+**Resultado:** Sistema de tarefas funcional e otimizado para uso dos pais.
+
+---
+
+## 🚀 SESSÃO 3 - 26 DE OUTUBRO DE 2025
+
+### ✨ MELHORIAS DE UX - TAREFAS (PARENT)
+
+**Problema:** Tarefas aguardando aprovação se perdiam na lista e informações importantes faltavam.
+
+**Soluções:**
+1. ✅ **Ordenação inteligente** - Tarefas COMPLETED aparecem no topo
+2. ✅ **Alinhamento corrigido** - Texto do status centralizado no chip
+3. ✅ **Descrição visível** - Cards mostram descrição da tarefa
+
+**Commits:**
+```
+1. feat: prioriza tarefas aguardando aprovação no topo da lista
+2. fix: centraliza texto do status dentro do chip
+3. feat: exibe descrição da tarefa no card de tarefas atribuídas
+```
+
+**Impacto:**
+- Pai identifica rapidamente o que precisa aprovar
+- Visual mais limpo e profissional
+- Mais contexto sobre cada tarefa
 
 ---
 
