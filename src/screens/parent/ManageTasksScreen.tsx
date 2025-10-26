@@ -468,13 +468,24 @@ const ManageTasksScreen: React.FC = () => {
                         👤 {assignment.childName}
                       </Text>
 
-                      <View style={styles.taskReward}>
-                        <Text style={styles.taskRewardText}>
-                          💰 {assignment.task.coinValue} moedas
-                        </Text>
-                        <Text style={styles.taskRewardText}>
-                          ⭐ {assignment.task.xpValue} XP
-                        </Text>
+                      <View style={styles.taskRewardRow}>
+                        <View style={styles.taskReward}>
+                          <Text style={styles.taskRewardText}>
+                            💰 {assignment.task.coinValue} moedas
+                          </Text>
+                          <Text style={styles.taskRewardText}>
+                            ⭐ {assignment.task.xpValue} XP
+                          </Text>
+                        </View>
+
+                        {/* Botão de excluir na mesma linha */}
+                        <IconButton
+                          icon="delete"
+                          iconColor={COLORS.common.error}
+                          size={20}
+                          onPress={() => openDeleteDialog(assignment)}
+                          style={styles.deleteButton}
+                        />
                       </View>
 
                       {/* Botões de ação para tarefas COMPLETED */}
@@ -508,17 +519,6 @@ const ManageTasksScreen: React.FC = () => {
                             ❌ Motivo: {assignment.rejectionReason}
                           </Text>
                         )}
-
-                      {/* Botão de excluir */}
-                      <View style={styles.deleteButtonContainer}>
-                        <IconButton
-                          icon="delete"
-                          iconColor={COLORS.common.error}
-                          size={20}
-                          onPress={() => openDeleteDialog(assignment)}
-                          style={styles.deleteButton}
-                        />
-                      </View>
                     </View>
 
                     {index < tasks.length - 1 && <Divider style={styles.divider} />}
@@ -677,7 +677,6 @@ const styles = StyleSheet.create({
   },
   taskItem: {
     paddingVertical: 12,
-    position: 'relative',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -713,10 +712,15 @@ const styles = StyleSheet.create({
     color: COLORS.common.textLight,
     marginBottom: 8,
   },
+  taskRewardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   taskReward: {
     flexDirection: 'row',
     gap: 15,
-    marginBottom: 12,
   },
   taskRewardText: {
     fontSize: 14,
@@ -738,11 +742,6 @@ const styles = StyleSheet.create({
     color: COLORS.common.error,
     fontStyle: 'italic',
     marginTop: 8,
-  },
-  deleteButtonContainer: {
-    position: 'absolute',
-    bottom: -8,
-    right: -8,
   },
   deleteButton: {
     margin: 0,
