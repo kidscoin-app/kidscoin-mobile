@@ -75,6 +75,19 @@ const ChildTasksScreen: React.FC = () => {
   };
 
   /**
+   * Refazer tarefa rejeitada
+   */
+  const handleRetry = async (assignmentId: string) => {
+    try {
+      await taskService.retryTask(assignmentId);
+      setSuccess("Tarefa pronta para refazer! Mostre que você consegue! 💪");
+      await loadTasks();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  /**
    * Obter emoji da categoria
    */
   const getCategoryEmoji = (category: string) => {
@@ -118,7 +131,7 @@ const ChildTasksScreen: React.FC = () => {
       case "PENDING":
         return "⏳ Fazer";
       case "COMPLETED":
-        return "⏰ Aguardando";
+        return "⏰ Revisar";
       case "APPROVED":
         return "✅ Aprovada";
       case "REJECTED":
@@ -142,18 +155,22 @@ const ChildTasksScreen: React.FC = () => {
         <SegmentedButtons
           value={filter}
           onValueChange={(value) => setFilter(value as any)}
+          density="small"
           buttons={[
             {
               value: "all",
               label: `Todas (${tasks.length})`,
+              style: styles.segmentButton,
             },
             {
               value: "PENDING",
               label: `Fazer (${countByStatus("PENDING")})`,
+              style: styles.segmentButton,
             },
             {
               value: "COMPLETED",
-              label: `Aguardando (${countByStatus("COMPLETED")})`,
+              label: `Revisar (${countByStatus("COMPLETED")})`,
+              style: styles.segmentButton,
             },
           ]}
         />
@@ -252,8 +269,17 @@ const ChildTasksScreen: React.FC = () => {
                           {assignment.rejectionReason}
                         </Text>
                         <Text style={styles.rejectionHint}>
-                          💡 Tente novamente fazendo melhor!
+                          💡 Leia o feedback e tente novamente!
                         </Text>
+                        <Button
+                          mode="contained"
+                          onPress={() => handleRetry(assignment.id)}
+                          style={styles.retryButton}
+                          buttonColor={COLORS.child.secondary}
+                          icon="refresh"
+                        >
+                          Refazer Tarefa
+                        </Button>
                       </View>
                     )}
                 </Card.Content>
@@ -296,6 +322,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.common.border,
   },
+  segmentButton: {
+    minHeight: 40,
+  },
   content: {
     flex: 1,
   },
@@ -318,11 +347,15 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     height: 28,
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusText: {
     fontSize: 12,
     color: COLORS.common.white,
     fontWeight: "600",
+    lineHeight: 14,
+    marginVertical: 0,
   },
   taskTitle: {
     fontSize: 18,
@@ -360,6 +393,9 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     marginTop: 5,
+  },
+  retryButton: {
+    marginTop: 12,
   },
   rejectionContainer: {
     backgroundColor: "#FFF5F5",

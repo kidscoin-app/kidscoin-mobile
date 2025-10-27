@@ -63,6 +63,16 @@ class TaskService {
   async deleteTask(assignmentId: string): Promise<void> {
     await api.delete(`/tasks/${assignmentId}`);
   }
+
+  /**
+   * Refazer tarefa rejeitada (CHILD)
+   */
+  async retryTask(assignmentId: string): Promise<TaskAssignment> {
+    const response = await api.put<TaskAssignment>(
+      `/tasks/assignments/${assignmentId}/retry`
+    );
+    return response.data;
+  }
 }
 
 export default new TaskService();
