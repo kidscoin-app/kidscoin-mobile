@@ -17,7 +17,7 @@ import {
   Portal,
 } from 'react-native-paper';
 import { rewardService, getErrorMessage } from '../../services';
-import { Reward } from '../../types';
+import { Reward, Redemption } from '../../types';
 import { COLORS } from '../../utils/constants';
 
 const CreateRewardScreen: React.FC = () => {
@@ -29,7 +29,9 @@ const CreateRewardScreen: React.FC = () => {
   // Estados
   const [loading, setLoading] = useState(false);
   const [loadingRewards, setLoadingRewards] = useState(false);
+  const [loadingRedemptions, setLoadingRedemptions] = useState(false);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -37,8 +39,14 @@ const CreateRewardScreen: React.FC = () => {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingReward, setDeletingReward] = useState<Reward | null>(null);
 
+  // Dialog de rejeição
+  const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
+  const [rejectingRedemption, setRejectingRedemption] = useState<Redemption | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   useEffect(() => {
     loadRewards();
+    loadRedemptions();
   }, []);
 
   /**
@@ -149,6 +157,64 @@ const CreateRewardScreen: React.FC = () => {
       setDeleteDialogVisible(false);
       setDeletingReward(null);
       await loadRewards();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  /**
+   * Carregar resgates pendentes
+   */
+  const loadRedemptions = async () => {
+    setLoadingRedemptions(true);
+    try {
+      const data = await rewardService.getRedemptions('PENDING');
+      setRedemptions(data);
+    } catch (err: any) {
+      console.error('Erro ao carregar resgates:', err);
+    } finally {
+      setLoadingRedemptions(false);
+    }
+  };
+
+  /**
+   * Aprovar resgate
+   */
+  const handleApproveRedemption = async (redemptionId: string) => {
+    try {
+      await rewardService.approveRedemption(redemptionId);
+      setSuccess('Resgate aprovado! Moedas debitadas.');
+      await loadRedemptions();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  /**
+   * Abrir dialog de rejeição
+   */
+  const openRejectDialog = (redemption: Redemption) => {
+    setRejectingRedemption(redemption);
+    setRejectionReason('');
+    setRejectDialogVisible(true);
+  };
+
+  /**
+   * Rejeitar resgate
+   */
+  const handleRejectRedemption = async () => {
+    if (!rejectingRedemption || !rejectionReason.trim()) {
+      return;
+    }
+
+    try {
+      await rewardService.rejectRedemption(rejectingRedemption.id, {
+        rejectionReason: rejectionReason.trim(),
+      });
+      setSuccess('Resgate rejeitado.');
+      setRejectDialogVisible(false);
+      setRejectingRedemption(null);
+      await loadRedemptions();
     } catch (err: any) {
       setError(getErrorMessage(err));
     }
@@ -282,6 +348,67 @@ const CreateRewardScreen: React.FC = () => {
             )}
           </Card.Content>
         </Card>
+
+        {/* Resgates Pendentes */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Resgates Pendentes de Aprovação</Text>
+
+            {loadingRedemptions ? (
+              <Text style={styles.emptyText}>Carregando...</Text>
+            ) : redemptions.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Nenhum resgate aguardando aprovação.
+              </Text>
+            ) : (
+              <View>
+                {redemptions.map((redemption, index) => (
+                  <React.Fragment key={redemption.id}>
+                    <View style={styles.redemptionItem}>
+                      <View style={styles.redemptionHeader}>
+                        <Text style={styles.redemptionReward}>
+                          🎁 {redemption.reward.name}
+                        </Text>
+                        <Text style={styles.redemptionCost}>
+                          💰 {redemption.reward.coinCost} moedas
+                        </Text>
+                      </View>
+                      <Text style={styles.redemptionChild}>
+                        👤 {redemption.childName}
+                      </Text>
+                      <Text style={styles.redemptionDate}>
+                        📅 Solicitado em{' '}
+                        {new Date(redemption.requestedAt).toLocaleDateString('pt-BR')}
+                      </Text>
+
+                      <View style={styles.redemptionActions}>
+                        <Button
+                          mode="contained"
+                          onPress={() => handleApproveRedemption(redemption.id)}
+                          style={styles.approveButton}
+                          buttonColor={COLORS.child.success}
+                          icon="check"
+                        >
+                          Aprovar
+                        </Button>
+                        <Button
+                          mode="outlined"
+                          onPress={() => openRejectDialog(redemption)}
+                          style={styles.rejectButton}
+                          textColor={COLORS.common.error}
+                          icon="close"
+                        >
+                          Rejeitar
+                        </Button>
+                      </View>
+                    </View>
+                    {index < redemptions.length - 1 && <Divider style={styles.divider} />}
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
+          </Card.Content>
+        </Card>
       </View>
 
       {/* Dialog de exclusão */}
@@ -303,6 +430,38 @@ const CreateRewardScreen: React.FC = () => {
               textColor={COLORS.common.error}
             >
               Excluir
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Dialog de rejeição */}
+        <Dialog
+          visible={rejectDialogVisible}
+          onDismiss={() => setRejectDialogVisible(false)}
+        >
+          <Dialog.Title>Rejeitar Resgate</Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Informe o motivo da rejeição para {rejectingRedemption?.childName}:
+            </Text>
+            <TextInput
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              mode="outlined"
+              multiline
+              numberOfLines={3}
+              placeholder="Ex: Não pode jogar videogame hoje"
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setRejectDialogVisible(false)}>Cancelar</Button>
+            <Button
+              onPress={handleRejectRedemption}
+              disabled={!rejectionReason.trim()}
+              textColor={COLORS.common.error}
+            >
+              Rejeitar
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -393,6 +552,57 @@ const styles = StyleSheet.create({
   },
   statusInactive: {
     color: COLORS.common.textLight,
+  },
+  redemptionItem: {
+    paddingVertical: 12,
+  },
+  redemptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  redemptionReward: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.common.text,
+    flex: 1,
+  },
+  redemptionCost: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.parent.primary,
+  },
+  redemptionChild: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    marginBottom: 4,
+  },
+  redemptionDate: {
+    fontSize: 13,
+    color: COLORS.common.textLight,
+    marginBottom: 12,
+  },
+  redemptionActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  approveButton: {
+    flex: 1,
+  },
+  rejectButton: {
+    flex: 1,
+    borderColor: COLORS.common.error,
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  dialogText: {
+    marginBottom: 15,
+    color: COLORS.common.text,
+  },
+  dialogInput: {
+    marginTop: 10,
   },
   errorSnackbar: {
     backgroundColor: COLORS.common.error,
