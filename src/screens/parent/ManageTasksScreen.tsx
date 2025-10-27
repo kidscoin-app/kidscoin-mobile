@@ -253,7 +253,7 @@ const ManageTasksScreen: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return COLORS.common.warning;
+        return COLORS.child.warning;
       case "COMPLETED":
         return COLORS.child.primary;
       case "APPROVED":
