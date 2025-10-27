@@ -77,10 +77,29 @@ O aplicativo mobile foi desenvolvido do zero usando **React Native + Expo** com 
 4. Pai aprova → moedas debitadas automaticamente
 5. Pai rejeita → informa motivo que a criança verá
 
+#### 4. Tarefas Recorrentes (Parent)
+
+**Funcionalidades:**
+- ✅ Switch "Tarefa Recorrente" no formulário de criar tarefa
+- ✅ Escolha de frequência: DAILY (todos os dias) ou WEEKLY (dias específicos)
+- ✅ Seleção de dias da semana (Seg-Dom) quando WEEKLY
+- ✅ Data final opcional (sempre ativa ou até data específica)
+- ✅ Validação: obriga seleção de dias quando WEEKLY
+- ✅ Hint: "A tarefa será criada automaticamente nos dias configurados"
+
+**Backend necessário:**
+- Campos: `isRecurring`, `recurrenceType`, `recurrenceDays`, `recurrenceEndDate`
+- Job @Scheduled que cria TaskAssignments automaticamente
+
+**Exemplo de uso:**
+- "Arrumar a cama" → Recorrente → Segunda a Sexta → Sempre ativa
+- Backend criará a tarefa automaticamente todo dia útil
+
 **Commits:**
 ```
 1. feat: adiciona funcionalidade de refazer tarefa rejeitada
 2. feat: adiciona aprovação de resgates de recompensas
+3. feat: adiciona suporte a tarefas recorrentes (frontend)
 ```
 
 ### 📈 MÉTRICAS ATUALIZADAS
@@ -88,9 +107,10 @@ O aplicativo mobile foi desenvolvido do zero usando **React Native + Expo** com 
 - **Telas completas:** 14/14 (100%) ✅
 - **Fluxo de recompensas:** 100% completo (solicitar → aprovar/rejeitar)
 - **Fluxo de tarefas:** 100% completo (criar → fazer → aprovar/rejeitar → refazer)
-- **Commits totais:** 50 commits
-- **Linhas de código:** ~8000+ linhas TypeScript
-- **Status:** ✅ **SISTEMA EDUCACIONAL COMPLETO**
+- **Tarefas recorrentes:** Frontend pronto (aguardando backend)
+- **Commits totais:** 52 commits
+- **Linhas de código:** ~8200+ linhas TypeScript
+- **Status:** ✅ **SISTEMA EDUCACIONAL COMPLETO + RECORRÊNCIA**
 
 ---
 
