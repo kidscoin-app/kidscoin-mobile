@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, ProgressBar, Avatar, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Text, Card, Button, ProgressBar, Avatar, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
-import { gamificationService, walletService } from '../../services';
+import { gamificationService, walletService, userService } from '../../services';
 import { Gamification, Wallet } from '../../types';
+import { AvatarSelector } from '../../components';
+import { getAvatarEmoji } from '../../utils/avatars';
 
 const ProfileScreen: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [gamification, setGamification] = useState<Gamification | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
 
   useEffect(() => {
     loadProfileData();
@@ -52,6 +58,23 @@ const ProfileScreen: React.FC = () => {
     return gamification.badges.filter(b => b.unlocked).length;
   };
 
+  // Função para atualizar avatar
+  const handleSelectAvatar = async (avatarId: string) => {
+    try {
+      setUpdatingAvatar(true);
+      const updatedUser = await userService.updateAvatar(avatarId);
+      updateUser(updatedUser); // Atualiza o contexto com o novo user
+      setSnackbarMessage('Avatar atualizado com sucesso! 🎉');
+      setSnackbarVisible(true);
+    } catch (error) {
+      console.error('Erro ao atualizar avatar:', error);
+      setSnackbarMessage('Erro ao atualizar avatar. Tente novamente.');
+      setSnackbarVisible(true);
+    } finally {
+      setUpdatingAvatar(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -61,16 +84,38 @@ const ProfileScreen: React.FC = () => {
     );
   }
 
+  const avatarEmoji = getAvatarEmoji(user?.avatarUrl);
+
   return (
     <ScrollView style={styles.container}>
       {/* Cabeçalho com Avatar */}
       <View style={styles.header}>
-        <Avatar.Text
-          size={100}
-          label={user?.fullName ? getInitials(user.fullName) : '??'}
-          style={styles.avatar}
-          labelStyle={styles.avatarLabel}
-        />
+        <TouchableOpacity
+          onPress={() => setShowAvatarSelector(true)}
+          activeOpacity={0.8}
+          disabled={updatingAvatar}
+        >
+          {avatarEmoji ? (
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarEmoji}>{avatarEmoji}</Text>
+              <View style={styles.editBadge}>
+                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
+              </View>
+            </View>
+          ) : (
+            <View>
+              <Avatar.Text
+                size={100}
+                label={user?.fullName ? getInitials(user.fullName) : '??'}
+                style={styles.avatar}
+                labelStyle={styles.avatarLabel}
+              />
+              <View style={styles.editBadge}>
+                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
         <Text style={styles.userName}>{user?.fullName || 'Sem nome'}</Text>
         <Text style={styles.userEmail}>@{user?.username || 'sem-usuario'}</Text>
       </View>
@@ -197,6 +242,24 @@ const ProfileScreen: React.FC = () => {
 
       {/* Espaçamento final */}
       <View style={styles.bottomSpacer} />
+
+      {/* Modal de Seleção de Avatar */}
+      <AvatarSelector
+        visible={showAvatarSelector}
+        onDismiss={() => setShowAvatarSelector(false)}
+        onSelectAvatar={handleSelectAvatar}
+        currentAvatarId={user?.avatarUrl || undefined}
+      />
+
+      {/* Snackbar de Feedback */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={styles.snackbar}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </ScrollView>
   );
 };
@@ -232,6 +295,32 @@ const styles = StyleSheet.create({
   avatarLabel: {
     fontSize: 36,
     fontWeight: 'bold',
+  },
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  avatarEmoji: {
+    fontSize: 64,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#4CAF50',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   userName: {
     fontSize: 24,
@@ -365,6 +454,9 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  snackbar: {
+    backgroundColor: '#4CAF50',
   },
 });
 

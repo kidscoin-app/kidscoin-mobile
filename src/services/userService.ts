@@ -36,6 +36,15 @@ class UserService {
   async deleteChild(childId: string): Promise<void> {
     await api.delete(`/users/children/${childId}`);
   }
+
+  /**
+   * Atualizar avatar do usuário (CHILD)
+   * @param avatarUrl - ID do avatar ou emoji
+   */
+  async updateAvatar(avatarUrl: string): Promise<User> {
+    const response = await api.patch<User>('/users/avatar', { avatarUrl });
+    return response.data;
+  }
 }
 
 export default new UserService();
