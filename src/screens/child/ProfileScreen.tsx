@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { Text, Card, Button, ProgressBar, Avatar, ActivityIndicator, Snackbar, Portal } from 'react-native-paper';
+import { Text, Card, Button, ProgressBar, Avatar, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
@@ -296,91 +296,132 @@ const ProfileScreen: React.FC = () => {
       </Snackbar>
 
       {/* Modal de Detalhes da Badge */}
-      <Portal>
-        <Modal
-          visible={badgeModalVisible}
-          onDismiss={() => setBadgeModalVisible(false)}
-          contentContainerStyle={styles.modalContainer}
+      <Modal
+        visible={badgeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setBadgeModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setBadgeModalVisible(false)}
         >
-          {selectedBadge && (
-            <View style={styles.modalContent}>
-              {/* Ícone da Badge */}
-              <View
-                style={[
-                  styles.modalBadgeIcon,
-                  selectedBadge.unlocked
-                    ? styles.modalBadgeIconUnlocked
-                    : styles.modalBadgeIconLocked,
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={selectedBadge.iconName as any}
-                  size={80}
-                  color={selectedBadge.unlocked ? '#FFD700' : '#CCCCCC'}
-                />
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {selectedBadge && (
+              <View style={styles.modalContainer}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.modalContent}
+                >
+                  {/* Header com Ícone e Nome */}
+                  <View style={styles.modalHeader}>
+                    <View
+                      style={[
+                        styles.modalBadgeIcon,
+                        selectedBadge.unlocked
+                          ? styles.modalBadgeIconUnlocked
+                          : styles.modalBadgeIconLocked,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={selectedBadge.iconName as any}
+                        size={56}
+                        color={selectedBadge.unlocked ? '#FFD700' : '#CCCCCC'}
+                      />
+                    </View>
+                    <Text style={styles.modalBadgeName}>{selectedBadge.name}</Text>
+
+                    {/* Status */}
+                    {selectedBadge.unlocked ? (
+                      <View style={styles.modalUnlockedBadge}>
+                        <MaterialCommunityIcons name="check-circle" size={18} color="#4CAF50" />
+                        <Text style={styles.modalUnlockedText}>Conquistada!</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.modalLockedBadge}>
+                        <MaterialCommunityIcons name="lock" size={18} color="#FF9800" />
+                        <Text style={styles.modalLockedText}>Bloqueada</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Divisor */}
+                  <View style={styles.modalDivider} />
+
+                  {/* Informações */}
+                  <View style={styles.modalBody}>
+                    {/* Descrição */}
+                    <View style={styles.modalInfoRow}>
+                      <View style={styles.modalInfoIcon}>
+                        <Text style={styles.modalInfoEmoji}>📖</Text>
+                      </View>
+                      <View style={styles.modalInfoContent}>
+                        <Text style={styles.modalInfoLabel}>Descrição</Text>
+                        <Text style={styles.modalInfoText}>{selectedBadge.description}</Text>
+                      </View>
+                    </View>
+
+                    {/* Como Conquistar */}
+                    <View style={styles.modalInfoRow}>
+                      <View style={styles.modalInfoIcon}>
+                        <Text style={styles.modalInfoEmoji}>🎯</Text>
+                      </View>
+                      <View style={styles.modalInfoContent}>
+                        <Text style={styles.modalInfoLabel}>Como Conquistar</Text>
+                        <Text style={styles.modalInfoText}>{getCriteriaText(selectedBadge)}</Text>
+                      </View>
+                    </View>
+
+                    {/* XP Bônus */}
+                    <View style={styles.modalInfoRow}>
+                      <View style={styles.modalInfoIcon}>
+                        <Text style={styles.modalInfoEmoji}>⭐</Text>
+                      </View>
+                      <View style={styles.modalInfoContent}>
+                        <Text style={styles.modalInfoLabel}>Bônus de XP</Text>
+                        <Text style={styles.modalXpBonus}>+{selectedBadge.xpBonus} XP</Text>
+                      </View>
+                    </View>
+
+                    {/* Data de Desbloqueio (se desbloqueada) */}
+                    {selectedBadge.unlocked && selectedBadge.unlockedAt && (
+                      <View style={styles.modalInfoRow}>
+                        <View style={styles.modalInfoIcon}>
+                          <Text style={styles.modalInfoEmoji}>📅</Text>
+                        </View>
+                        <View style={styles.modalInfoContent}>
+                          <Text style={styles.modalInfoLabel}>Desbloqueada em</Text>
+                          <Text style={styles.modalInfoText}>
+                            {new Date(selectedBadge.unlockedAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Botão Fechar */}
+                  <Button
+                    mode="contained"
+                    onPress={() => setBadgeModalVisible(false)}
+                    style={styles.modalCloseButton}
+                    buttonColor={COLORS.child.primary}
+                  >
+                    Fechar
+                  </Button>
+                </ScrollView>
               </View>
-
-              {/* Nome da Badge */}
-              <Text style={styles.modalBadgeName}>{selectedBadge.name}</Text>
-
-              {/* Status */}
-              {selectedBadge.unlocked ? (
-                <View style={styles.modalUnlockedBadge}>
-                  <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
-                  <Text style={styles.modalUnlockedText}>Conquistada!</Text>
-                </View>
-              ) : (
-                <View style={styles.modalLockedBadge}>
-                  <MaterialCommunityIcons name="lock" size={20} color="#FF9800" />
-                  <Text style={styles.modalLockedText}>Bloqueada</Text>
-                </View>
-              )}
-
-              {/* Descrição */}
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>📖 Descrição</Text>
-                <Text style={styles.modalSectionText}>{selectedBadge.description}</Text>
-              </View>
-
-              {/* Como Conquistar */}
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>🎯 Como Conquistar</Text>
-                <Text style={styles.modalSectionText}>{getCriteriaText(selectedBadge)}</Text>
-              </View>
-
-              {/* XP Bônus */}
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>⭐ Bônus de XP</Text>
-                <Text style={styles.modalXpBonus}>+{selectedBadge.xpBonus} XP</Text>
-              </View>
-
-              {/* Data de Desbloqueio (se desbloqueada) */}
-              {selectedBadge.unlocked && selectedBadge.unlockedAt && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>📅 Desbloqueada em</Text>
-                  <Text style={styles.modalSectionText}>
-                    {new Date(selectedBadge.unlockedAt).toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </Text>
-                </View>
-              )}
-
-              {/* Botão Fechar */}
-              <Button
-                mode="contained"
-                onPress={() => setBadgeModalVisible(false)}
-                style={styles.modalCloseButton}
-                buttonColor={COLORS.child.primary}
-              >
-                Fechar
-              </Button>
-            </View>
-          )}
-        </Modal>
-      </Portal>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 };
@@ -580,24 +621,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   // Estilos do Modal de Badge
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   modalContainer: {
-    margin: 20,
     backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 24,
+    width: '100%',
+    maxWidth: 400,
     maxHeight: '80%',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   modalContent: {
+    padding: 24,
+  },
+  modalHeader: {
     alignItems: 'center',
+    marginBottom: 20,
   },
   modalBadgeIcon: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    borderWidth: 4,
+    borderWidth: 3,
   },
   modalBadgeIconUnlocked: {
     backgroundColor: '#FFF9C4',
@@ -608,7 +665,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   modalBadgeName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
@@ -618,13 +675,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F5E9',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   modalUnlockedText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#4CAF50',
     marginLeft: 6,
@@ -633,40 +689,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF3E0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   modalLockedText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#FF9800',
     marginLeft: 6,
   },
-  modalSection: {
-    width: '100%',
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
     marginBottom: 20,
   },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 8,
+  modalBody: {
+    marginBottom: 20,
   },
-  modalSectionText: {
+  modalInfoRow: {
+    flexDirection: 'row',
+    marginBottom: 18,
+  },
+  modalInfoIcon: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  modalInfoEmoji: {
+    fontSize: 24,
+  },
+  modalInfoContent: {
+    flex: 1,
+  },
+  modalInfoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalInfoText: {
     fontSize: 15,
     color: '#333',
     lineHeight: 22,
   },
   modalXpBonus: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#4CAF50',
   },
   modalCloseButton: {
-    width: '100%',
-    marginTop: 8,
+    marginTop: 4,
     paddingVertical: 6,
   },
 });
