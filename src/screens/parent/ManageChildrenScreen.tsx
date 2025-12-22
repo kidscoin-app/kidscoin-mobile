@@ -85,8 +85,8 @@ const ManageChildrenScreen: React.FC = () => {
     }
 
     const ageNum = parseInt(age);
-    if (isNaN(ageNum) || ageNum < 6 || ageNum > 14) {
-      setError("Idade deve estar entre 6 e 14 anos");
+    if (isNaN(ageNum) || ageNum < 1) {
+      setError('Idade inválida');
       return false;
     }
 
@@ -180,13 +180,62 @@ const ManageChildrenScreen: React.FC = () => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          {/* Formulário de criar criança */}
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={styles.cardTitle}>Cadastrar Nova Criança</Text>
-              <Text style={styles.cardSubtitle}>
-                Cadastre uma criança para sua família
-              </Text>
+        {/* Formulário de criar criança */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Criar Nova Criança</Text>
+            <Text style={styles.cardSubtitle}>
+              Cadastre uma criança para sua família
+            </Text>
+
+            <TextInput
+              label="Nome da Criança"
+              value={fullName}
+              onChangeText={setFullName}
+              mode="outlined"
+              style={styles.input}
+              left={<TextInput.Icon icon="account" />}
+              placeholder="Ex: João Silva"
+            />
+
+            <TextInput
+              label="Username"
+              value={username}
+              onChangeText={(text) => setUsername(text.toLowerCase())}
+              mode="outlined"
+              autoCapitalize="none"
+              style={styles.input}
+              left={<TextInput.Icon icon="at" />}
+              placeholder="Ex: joao_silva"
+            />
+
+            <TextInput
+              label="Idade"
+              value={age}
+              onChangeText={setAge}
+              mode="outlined"
+              keyboardType="numeric"
+              maxLength={2}
+              style={styles.input}
+              left={<TextInput.Icon icon="calendar" />}
+              placeholder="Ex: 10"
+            />
+
+            <TextInput
+              label="Idade"
+              value={age}
+              onChangeText={setAge}
+              mode="outlined"
+              keyboardType="numeric"
+              maxLength={2}
+              style={styles.input}
+              left={<TextInput.Icon icon="calendar" />}
+              placeholder="Ex: 10"
+            />
+
+            <Text style={styles.helperText}>
+              💡 A criança usará o username e o PIN para fazer login
+            </Text>
 
               <TextInput
                 label="Nome da Criança"
