@@ -1,23 +1,23 @@
 /**
  * Tela para criar e gerenciar recompensas (Parent)
  */
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
-  Text,
-  TextInput,
   Button,
   Card,
+  Dialog,
   Divider,
+  IconButton,
+  List,
+  Portal,
   Snackbar,
   Switch,
-  List,
-  IconButton,
-  Dialog,
-  Portal,
+  Text,
+  TextInput,
 } from 'react-native-paper';
-import { rewardService, getErrorMessage } from '../../services';
-import { Reward, Redemption } from '../../types';
+import { getErrorMessage, rewardService } from '../../services';
+import { Redemption, Reward } from '../../types';
 import { COLORS } from '../../utils/constants';
 
 const CreateRewardScreen: React.FC = () => {
@@ -124,11 +124,7 @@ const CreateRewardScreen: React.FC = () => {
   const handleToggleReward = async (reward: Reward) => {
     try {
       await rewardService.toggleReward(reward.id);
-      setSuccess(
-        reward.isActive
-          ? `${reward.name} foi desativada`
-          : `${reward.name} foi ativada`
-      );
+      setSuccess(reward.isActive ? `${reward.name} foi desativada` : `${reward.name} foi ativada`);
       await loadRewards();
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -224,192 +220,180 @@ const CreateRewardScreen: React.FC = () => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-        {/* Formulário de criar recompensa */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Criar Nova Recompensa</Text>
-            <Text style={styles.cardSubtitle}>
-              Crie recompensas que as crianças podem resgatar com suas moedas
-            </Text>
+          {/* Formulário de criar recompensa */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Criar Nova Recompensa</Text>
+              <Text style={styles.cardSubtitle}>Crie recompensas que as crianças podem resgatar com suas moedas</Text>
 
-            <TextInput
-              label="Nome da Recompensa"
-              value={name}
-              onChangeText={setName}
-              mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="gift" />}
-              placeholder="Ex: 1 hora de videogame"
-            />
+              <TextInput
+                label="Nome da Recompensa"
+                value={name}
+                onChangeText={setName}
+                mode="outlined"
+                style={styles.input}
+                left={<TextInput.Icon icon="gift" />}
+                placeholder="Ex: 1 hora de videogame"
+              />
 
-            <TextInput
-              label="Descrição (opcional)"
-              value={description}
-              onChangeText={setDescription}
-              mode="outlined"
-              multiline
-              numberOfLines={2}
-              style={styles.input}
-              placeholder="Ex: Pode escolher qualquer jogo"
-            />
+              <TextInput
+                label="Descrição (opcional)"
+                value={description}
+                onChangeText={setDescription}
+                mode="outlined"
+                multiline
+                numberOfLines={2}
+                style={styles.input}
+                placeholder="Ex: Pode escolher qualquer jogo"
+              />
 
-            <TextInput
-              label="Custo em Moedas"
-              value={coinCost}
-              onChangeText={setCoinCost}
-              mode="outlined"
-              keyboardType="numeric"
-              style={styles.input}
-              left={<TextInput.Icon icon="currency-usd" />}
-              placeholder="100"
-            />
+              <TextInput
+                label="Custo em Moedas"
+                value={coinCost}
+                onChangeText={setCoinCost}
+                mode="outlined"
+                keyboardType="numeric"
+                style={styles.input}
+                left={<TextInput.Icon icon="currency-usd" />}
+                placeholder="100"
+              />
 
-            <Button
-              mode="contained"
-              onPress={handleCreateReward}
-              loading={loading}
-              disabled={loading}
-              style={styles.createButton}
-              buttonColor={COLORS.parent.primary}
-              icon="plus"
-            >
-              Criar Recompensa
-            </Button>
-          </Card.Content>
-        </Card>
+              <Button
+                mode="contained"
+                onPress={handleCreateReward}
+                loading={loading}
+                disabled={loading}
+                style={styles.createButton}
+                buttonColor={COLORS.parent.primary}
+                icon="plus"
+              >
+                Criar Recompensa
+              </Button>
+            </Card.Content>
+          </Card>
 
-        {/* Lista de recompensas */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Recompensas Disponíveis</Text>
+          {/* Lista de recompensas */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Recompensas Disponíveis</Text>
 
-            {loadingRewards ? (
-              <Text style={styles.emptyText}>Carregando...</Text>
-            ) : rewards.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Nenhuma recompensa criada ainda.
-              </Text>
-            ) : (
-              <View>
-                {rewards.map((reward, index) => (
-                  <React.Fragment key={reward.id}>
-                    <List.Item
-                      title={reward.name}
-                      description={
-                        reward.description
-                          ? `${reward.description} • 💰 ${reward.coinCost} moedas`
-                          : `💰 ${reward.coinCost} moedas`
-                      }
-                      left={(props) => (
-                        <List.Icon
-                          {...props}
-                          icon="gift"
-                          color={
-                            reward.isActive
-                              ? COLORS.parent.primary
-                              : COLORS.common.textLight
-                          }
-                        />
-                      )}
-                      right={(props) => (
-                        <View style={styles.rewardRight}>
-                          <Text
-                            style={[
-                              styles.statusText,
-                              reward.isActive
-                                ? styles.statusActive
-                                : styles.statusInactive,
-                            ]}
-                          >
-                            {reward.isActive ? 'Ativa' : 'Inativa'}
-                          </Text>
-                          <Switch
-                            value={reward.isActive}
-                            onValueChange={() => handleToggleReward(reward)}
-                            color={COLORS.parent.primary}
-                          />
+              {loadingRewards ? (
+                <Text style={styles.emptyText}>Carregando...</Text>
+              ) : rewards.length === 0 ? (
+                <Text style={styles.emptyText}>Nenhuma recompensa criada ainda.</Text>
+              ) : (
+                <View>
+                  {rewards.map((reward, index) => (
+                    <React.Fragment key={reward.id}>
+                      <View style={styles.rewardItem}>
+                        {/* Header com ícone e título */}
+                        <View style={styles.rewardHeader}>
+                          <View style={styles.rewardIconContainer}>
+                            <List.Icon
+                              icon="gift"
+                              color={reward.isActive ? COLORS.parent.primary : COLORS.common.textLight}
+                            />
+                          </View>
+                          <View style={styles.rewardHeaderText}>
+                            <Text style={[styles.rewardName, !reward.isActive && styles.rewardNameInactive]}>
+                              {reward.name}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Descrição (se houver) */}
+                        {reward.description && <Text style={styles.rewardDescription}>{reward.description}</Text>}
+
+                        {/* Valor em moedas */}
+                        <View style={styles.rewardCostContainer}>
+                          <Text style={styles.rewardCostLabel}>Custo:</Text>
+                          <Text style={styles.rewardCost}>💰 {reward.coinCost} moedas</Text>
+                        </View>
+
+                        {/* Ações (Switch e Delete) */}
+                        <View style={styles.rewardActions}>
+                          <View style={styles.rewardToggle}>
+                            <View style={styles.switchContainer}>
+                              <Switch
+                                value={reward.isActive}
+                                onValueChange={() => handleToggleReward(reward)}
+                                color={COLORS.parent.primary}
+                              />
+                            </View>
+                            <Text
+                              style={[styles.statusText, reward.isActive ? styles.statusActive : styles.statusInactive]}
+                            >
+                              {reward.isActive ? 'Ativa' : 'Inativa'}
+                            </Text>
+                          </View>
                           <IconButton
                             icon="delete"
                             iconColor={COLORS.common.error}
-                            size={20}
+                            size={24}
                             onPress={() => openDeleteDialog(reward)}
+                            style={styles.deleteButton}
                           />
                         </View>
-                      )}
-                      titleStyle={[
-                        styles.rewardName,
-                        !reward.isActive && styles.rewardNameInactive,
-                      ]}
-                      descriptionStyle={styles.rewardDescription}
-                    />
-                    {index < rewards.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </View>
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* Resgates Pendentes */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Resgates Pendentes de Aprovação</Text>
-
-            {loadingRedemptions ? (
-              <Text style={styles.emptyText}>Carregando...</Text>
-            ) : redemptions.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Nenhum resgate aguardando aprovação.
-              </Text>
-            ) : (
-              <View>
-                {redemptions.map((redemption, index) => (
-                  <React.Fragment key={redemption.id}>
-                    <View style={styles.redemptionItem}>
-                      <View style={styles.redemptionHeader}>
-                        <Text style={styles.redemptionReward}>
-                          🎁 {redemption.reward.name}
-                        </Text>
-                        <Text style={styles.redemptionCost}>
-                          💰 {redemption.reward.coinCost} moedas
-                        </Text>
                       </View>
-                      <Text style={styles.redemptionChild}>
-                        👤 {redemption.childName}
-                      </Text>
-                      <Text style={styles.redemptionDate}>
-                        📅 Solicitado em{' '}
-                        {new Date(redemption.requestedAt).toLocaleDateString('pt-BR')}
-                      </Text>
+                      {index < rewards.length - 1 && <Divider style={styles.rewardDivider} />}
+                    </React.Fragment>
+                  ))}
+                </View>
+              )}
+            </Card.Content>
+          </Card>
 
-                      <View style={styles.redemptionActions}>
-                        <Button
-                          mode="contained"
-                          onPress={() => handleApproveRedemption(redemption.id)}
-                          style={styles.approveButton}
-                          buttonColor={COLORS.child.success}
-                          icon="check"
-                        >
-                          Aprovar
-                        </Button>
-                        <Button
-                          mode="outlined"
-                          onPress={() => openRejectDialog(redemption)}
-                          style={styles.rejectButton}
-                          textColor={COLORS.common.error}
-                          icon="close"
-                        >
-                          Rejeitar
-                        </Button>
+          {/* Resgates Pendentes */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Resgates Pendentes de Aprovação</Text>
+
+              {loadingRedemptions ? (
+                <Text style={styles.emptyText}>Carregando...</Text>
+              ) : redemptions.length === 0 ? (
+                <Text style={styles.emptyText}>Nenhum resgate aguardando aprovação.</Text>
+              ) : (
+                <View>
+                  {redemptions.map((redemption, index) => (
+                    <React.Fragment key={redemption.id}>
+                      <View style={styles.redemptionItem}>
+                        <View style={styles.redemptionHeader}>
+                          <Text style={styles.redemptionReward}>🎁 {redemption.reward.name}</Text>
+                          <Text style={styles.redemptionCost}>💰 {redemption.reward.coinCost} moedas</Text>
+                        </View>
+                        <Text style={styles.redemptionChild}>👤 {redemption.childName}</Text>
+                        <Text style={styles.redemptionDate}>
+                          📅 Solicitado em {new Date(redemption.requestedAt).toLocaleDateString('pt-BR')}
+                        </Text>
+
+                        <View style={styles.redemptionActions}>
+                          <Button
+                            mode="contained"
+                            onPress={() => handleApproveRedemption(redemption.id)}
+                            style={styles.approveButton}
+                            buttonColor={COLORS.child.success}
+                            icon="check"
+                          >
+                            Aprovar
+                          </Button>
+                          <Button
+                            mode="outlined"
+                            onPress={() => openRejectDialog(redemption)}
+                            style={styles.rejectButton}
+                            textColor={COLORS.common.error}
+                            icon="close"
+                          >
+                            Rejeitar
+                          </Button>
+                        </View>
                       </View>
-                    </View>
-                    {index < redemptions.length - 1 && <Divider style={styles.divider} />}
-                  </React.Fragment>
-                ))}
-              </View>
-            )}
-          </Card.Content>
-        </Card>
+                      {index < redemptions.length - 1 && <Divider style={styles.divider} />}
+                    </React.Fragment>
+                  ))}
+                </View>
+              )}
+            </Card.Content>
+          </Card>
         </View>
       </ScrollView>
 
@@ -418,34 +402,24 @@ const CreateRewardScreen: React.FC = () => {
         <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
           <Dialog.Title>Excluir Recompensa</Dialog.Title>
           <Dialog.Content>
-            <Text>
-              Tem certeza que deseja excluir a recompensa "{deletingReward?.name}"?
-            </Text>
+            <Text>Tem certeza que deseja excluir a recompensa "{deletingReward?.name}"?</Text>
             <Text style={{ fontSize: 13, color: COLORS.common.textLight, marginTop: 10 }}>
               Esta ação não pode ser desfeita.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDeleteDialogVisible(false)}>Cancelar</Button>
-            <Button
-              onPress={handleDeleteReward}
-              textColor={COLORS.common.error}
-            >
+            <Button onPress={handleDeleteReward} textColor={COLORS.common.error}>
               Excluir
             </Button>
           </Dialog.Actions>
         </Dialog>
 
         {/* Dialog de rejeição */}
-        <Dialog
-          visible={rejectDialogVisible}
-          onDismiss={() => setRejectDialogVisible(false)}
-        >
+        <Dialog visible={rejectDialogVisible} onDismiss={() => setRejectDialogVisible(false)}>
           <Dialog.Title>Rejeitar Resgate</Dialog.Title>
           <Dialog.Content>
-            <Text style={styles.dialogText}>
-              Informe o motivo da rejeição para {rejectingRedemption?.childName}:
-            </Text>
+            <Text style={styles.dialogText}>Informe o motivo da rejeição para {rejectingRedemption?.childName}:</Text>
             <TextInput
               value={rejectionReason}
               onChangeText={setRejectionReason}
@@ -458,11 +432,7 @@ const CreateRewardScreen: React.FC = () => {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setRejectDialogVisible(false)}>Cancelar</Button>
-            <Button
-              onPress={handleRejectRedemption}
-              disabled={!rejectionReason.trim()}
-              textColor={COLORS.common.error}
-            >
+            <Button onPress={handleRejectRedemption} disabled={!rejectionReason.trim()} textColor={COLORS.common.error}>
               Rejeitar
             </Button>
           </Dialog.Actions>
@@ -470,21 +440,11 @@ const CreateRewardScreen: React.FC = () => {
       </Portal>
 
       {/* Snackbars - Fora do ScrollView para ficarem fixos */}
-      <Snackbar
-        visible={!!error}
-        onDismiss={() => setError('')}
-        duration={3000}
-        style={styles.errorSnackbar}
-      >
+      <Snackbar visible={!!error} onDismiss={() => setError('')} duration={3000} style={styles.errorSnackbar}>
         {error}
       </Snackbar>
 
-      <Snackbar
-        visible={!!success}
-        onDismiss={() => setSuccess('')}
-        duration={3000}
-        style={styles.successSnackbar}
-      >
+      <Snackbar visible={!!success} onDismiss={() => setSuccess('')} duration={3000} style={styles.successSnackbar}>
         {success}
       </Snackbar>
     </View>
@@ -530,10 +490,25 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     fontStyle: 'italic',
   },
+  rewardItem: {
+    paddingVertical: 16,
+  },
+  rewardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rewardIconContainer: {
+    marginRight: 8,
+  },
+  rewardHeaderText: {
+    flex: 1,
+  },
   rewardName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: COLORS.common.text,
+    lineHeight: 24,
   },
   rewardNameInactive: {
     color: COLORS.common.textLight,
@@ -542,14 +517,45 @@ const styles = StyleSheet.create({
   rewardDescription: {
     fontSize: 14,
     color: COLORS.common.textLight,
+    lineHeight: 20,
+    marginBottom: 12,
+    paddingLeft: 48,
   },
-  rewardRight: {
+  rewardCostContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: COLORS.parent.background,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  rewardCostLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.common.textLight,
+    marginRight: 8,
+  },
+  rewardCost: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.parent.primary,
+  },
+  rewardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rewardToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  switchContainer: {
+    transform: [{ scale: 1.25 }],
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   statusActive: {
@@ -557,6 +563,13 @@ const styles = StyleSheet.create({
   },
   statusInactive: {
     color: COLORS.common.textLight,
+  },
+  deleteButton: {
+    margin: 0,
+    marginTop: 4,
+  },
+  rewardDivider: {
+    marginVertical: 8,
   },
   redemptionItem: {
     paddingVertical: 12,
