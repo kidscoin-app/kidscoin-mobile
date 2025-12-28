@@ -1,21 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import {
-  Text,
-  Card,
-  Button,
-  ProgressBar,
-  ActivityIndicator,
-  Portal,
-  Modal,
-  TextInput,
-  Chip,
-  Snackbar,
-} from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
+import { Keyboard, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Button,
+  Card,
+  Chip,
+  IconButton,
+  Modal,
+  Portal,
+  ProgressBar,
+  Snackbar,
+  Text,
+  TextInput,
+} from 'react-native-paper';
 import { walletService } from '../../services';
 import { Savings, Wallet } from '../../types';
+import { COLORS } from '../../utils/constants';
+
+const SAVINGS_GOAL_KEY = '@kidscoin:savingsGoal';
 
 const SavingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -26,28 +30,39 @@ const SavingsScreen: React.FC = () => {
   // Modais
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
 
   // Valores dos modais
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [newGoal, setNewGoal] = useState('');
 
   // Snackbar
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'success' });
 
-  // Meta de poupança (fixo em 500 por enquanto)
-  const SAVINGS_GOAL = 500;
+  // Meta de poupança (editável)
+  const [savingsGoal, setSavingsGoal] = useState(500);
 
   useEffect(() => {
     loadData();
+    loadSavingsGoal();
   }, []);
+
+  const loadSavingsGoal = async () => {
+    try {
+      const storedGoal = await AsyncStorage.getItem(SAVINGS_GOAL_KEY);
+      if (storedGoal) {
+        setSavingsGoal(parseInt(storedGoal));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar meta de poupança:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [savingsData, walletData] = await Promise.all([
-        walletService.getSavings(),
-        walletService.getWallet(),
-      ]);
+      const [savingsData, walletData] = await Promise.all([walletService.getSavings(), walletService.getWallet()]);
       setSavings(savingsData);
       setWallet(walletData);
     } catch (error) {
@@ -68,10 +83,39 @@ const SavingsScreen: React.FC = () => {
     setSnackbar({ visible: true, message, type });
   };
 
+  // Atualizar meta de poupança
+  const handleUpdateGoal = async () => {
+    Keyboard.dismiss(); // Fecha o teclado
+
+    const goalValue = parseInt(newGoal);
+    const currentBalance = savings?.balance || 0;
+
+    if (!goalValue || goalValue <= 0) {
+      showSnackbar('Digite um valor válido', 'error');
+      return;
+    }
+
+    if (goalValue < currentBalance) {
+      showSnackbar('A meta não pode ser menor que o saldo atual', 'error');
+      return;
+    }
+
+    try {
+      await AsyncStorage.setItem(SAVINGS_GOAL_KEY, goalValue.toString());
+      setSavingsGoal(goalValue);
+      setGoalModalVisible(false);
+      setNewGoal('');
+      showSnackbar('Meta atualizada com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao salvar meta:', error);
+      showSnackbar('Erro ao salvar meta', 'error');
+    }
+  };
+
   // Calcula progresso da meta (0 a 1)
   const getGoalProgress = (): number => {
     if (!savings) return 0;
-    return Math.min(savings.balance / SAVINGS_GOAL, 1);
+    return Math.min(savings.balance / savingsGoal, 1);
   };
 
   // Calcula percentual da meta
@@ -154,12 +198,7 @@ const SavingsScreen: React.FC = () => {
       }
       setWithdrawModalVisible(false);
       setWithdrawAmount('');
-      showSnackbar(
-        bonus > 0
-          ? `Sacado ${amount} moedas + ${bonus} de bônus!`
-          : `${amount} moedas sacadas!`,
-        'success'
-      );
+      showSnackbar(bonus > 0 ? `Sacado ${amount} moedas + ${bonus} de bônus!` : `${amount} moedas sacadas!`, 'success');
     } catch (error: any) {
       console.error('Erro ao sacar:', error);
       showSnackbar(error.response?.data?.message || 'Erro ao sacar', 'error');
@@ -176,10 +215,11 @@ const SavingsScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
+    <>
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
       {/* Card Principal - Saldo */}
       <Card style={styles.balanceCard}>
         <Card.Content>
@@ -239,26 +279,30 @@ const SavingsScreen: React.FC = () => {
           <View style={styles.goalHeader}>
             <MaterialCommunityIcons name="target" size={32} color="#9C27B0" />
             <Text style={styles.goalTitle}>Meta de Poupança</Text>
+            <IconButton
+              icon="pencil"
+              size={20}
+              iconColor="#9C27B0"
+              onPress={() => {
+                setNewGoal(savingsGoal.toString());
+                setGoalModalVisible(true);
+              }}
+              style={styles.editGoalButton}
+            />
           </View>
           <Text style={styles.goalAmount}>
-            {savings?.balance || 0} / {SAVINGS_GOAL} moedas
+            {savings?.balance || 0} / {savingsGoal} moedas
           </Text>
-          <ProgressBar
-            progress={getGoalProgress()}
-            color="#4CAF50"
-            style={styles.progressBar}
-          />
+          <ProgressBar progress={getGoalProgress()} color="#4CAF50" style={styles.progressBar} />
           <Text style={styles.goalPercentage}>{getGoalPercentage()}% alcançado</Text>
           {getGoalPercentage() >= 100 ? (
             <View style={styles.goalAchieved}>
               <MaterialCommunityIcons name="party-popper" size={32} color="#FFD700" />
-              <Text style={styles.goalAchievedText}>
-                Parabéns! Você atingiu sua meta! 🎉
-              </Text>
+              <Text style={styles.goalAchievedText}>Parabéns! Você atingiu sua meta! 🎉</Text>
             </View>
           ) : (
             <Text style={styles.goalMessage}>
-              Faltam {SAVINGS_GOAL - (savings?.balance || 0)} moedas para atingir sua meta!
+              Faltam {savingsGoal - (savings?.balance || 0)} moedas para atingir sua meta!
             </Text>
           )}
         </Card.Content>
@@ -271,9 +315,7 @@ const SavingsScreen: React.FC = () => {
             <MaterialCommunityIcons name="calculator" size={32} color="#00BCD4" />
             <Text style={styles.simulatorTitle}>Quanto vai render?</Text>
           </View>
-          <Text style={styles.simulatorSubtitle}>
-            Sua poupança rende 2% toda semana! 📈
-          </Text>
+          <Text style={styles.simulatorSubtitle}>Sua poupança rende 2% toda semana! 📈</Text>
           <View style={styles.simulationList}>
             <View style={styles.simulationItem}>
               <Text style={styles.simulationPeriod}>Em 1 semana:</Text>
@@ -298,27 +340,19 @@ const SavingsScreen: React.FC = () => {
             <MaterialCommunityIcons name="clock-fast" size={32} color="#FF5722" />
             <Text style={styles.bonusTitle}>Bônus por Tempo</Text>
           </View>
-          <Text style={styles.bonusSubtitle}>
-            Quanto mais tempo guardar, maior o bônus no saque!
-          </Text>
+          <Text style={styles.bonusSubtitle}>Quanto mais tempo guardar, maior o bônus no saque!</Text>
           <View style={styles.bonusChips}>
             <Chip
               icon="calendar-week"
               mode="outlined"
-              style={[
-                styles.bonusChip,
-                getDaysSaved() >= 7 && getDaysSaved() < 30 && styles.bonusChipActive,
-              ]}
+              style={[styles.bonusChip, getDaysSaved() >= 7 && getDaysSaved() < 30 && styles.bonusChipActive]}
             >
               7 dias: +2%
             </Chip>
             <Chip
               icon="calendar-month"
               mode="outlined"
-              style={[
-                styles.bonusChip,
-                getDaysSaved() >= 30 && styles.bonusChipActive,
-              ]}
+              style={[styles.bonusChip, getDaysSaved() >= 30 && styles.bonusChipActive]}
             >
               30 dias: +10%
             </Chip>
@@ -369,12 +403,7 @@ const SavingsScreen: React.FC = () => {
             >
               Cancelar
             </Button>
-            <Button
-              mode="contained"
-              onPress={handleDeposit}
-              style={styles.modalButton}
-              buttonColor="#4CAF50"
-            >
+            <Button mode="contained" onPress={handleDeposit} style={styles.modalButton} buttonColor="#4CAF50">
               Depositar
             </Button>
           </View>
@@ -395,9 +424,7 @@ const SavingsScreen: React.FC = () => {
           {getTimeBonus() > 0 && (
             <View style={styles.bonusBadge}>
               <MaterialCommunityIcons name="gift" size={20} color="#4CAF50" />
-              <Text style={styles.bonusBadgeText}>
-                Você vai receber +{getTimeBonus()}% de bônus! 🎁
-              </Text>
+              <Text style={styles.bonusBadgeText}>Você vai receber +{getTimeBonus()}% de bônus! 🎁</Text>
             </View>
           )}
           <TextInput
@@ -411,7 +438,8 @@ const SavingsScreen: React.FC = () => {
           />
           {withdrawAmount && parseInt(withdrawAmount) > 0 && (
             <Text style={styles.withdrawPreview}>
-              Você receberá: {parseInt(withdrawAmount) + Math.round(parseInt(withdrawAmount) * (getTimeBonus() / 100))} moedas
+              Você receberá: {parseInt(withdrawAmount) + Math.round(parseInt(withdrawAmount) * (getTimeBonus() / 100))}{' '}
+              moedas
             </Text>
           )}
           <View style={styles.modalButtons}>
@@ -425,17 +453,64 @@ const SavingsScreen: React.FC = () => {
             >
               Cancelar
             </Button>
-            <Button
-              mode="contained"
-              onPress={handleWithdraw}
-              style={styles.modalButton}
-              buttonColor="#FF9800"
-            >
+            <Button mode="contained" onPress={handleWithdraw} style={styles.modalButton} buttonColor="#FF9800">
               Sacar
             </Button>
           </View>
         </Modal>
       </Portal>
+
+      {/* Modal de Editar Meta */}
+      <Portal>
+        <Modal
+          visible={goalModalVisible}
+          onDismiss={() => setGoalModalVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Editar Meta de Poupança</Text>
+          <Text style={styles.modalSubtitle}>
+            Saldo atual: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
+          </Text>
+          <Text style={styles.modalSubtitle}>
+            Meta atual: <Text style={styles.modalBalance}>{savingsGoal} moedas</Text>
+          </Text>
+          <View style={styles.warningBox}>
+            <MaterialCommunityIcons name="information" size={20} color="#FF9800" />
+            <Text style={styles.warningText}>
+              A nova meta deve ser maior ou igual ao saldo atual da poupança ({savings?.balance || 0} moedas)
+            </Text>
+          </View>
+          <TextInput
+            label="Nova meta"
+            value={newGoal}
+            onChangeText={setNewGoal}
+            keyboardType="number-pad"
+            mode="outlined"
+            style={styles.input}
+            left={<TextInput.Icon icon="target" />}
+            placeholder={`Mínimo: ${savings?.balance || 0}`}
+          />
+          <View style={styles.modalButtons}>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setGoalModalVisible(false);
+                setNewGoal('');
+              }}
+              style={styles.modalButton}
+            >
+              Cancelar
+            </Button>
+            <Button mode="contained" onPress={handleUpdateGoal} style={styles.modalButton} buttonColor="#6366F1">
+              Salvar
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      {/* Espaçamento final */}
+      <View style={styles.bottomSpacer} />
+      </ScrollView>
 
       {/* Snackbar */}
       <Snackbar
@@ -448,10 +523,7 @@ const SavingsScreen: React.FC = () => {
       >
         {snackbar.message}
       </Snackbar>
-
-      {/* Espaçamento final */}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </>
   );
 };
 
@@ -547,6 +619,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginLeft: 12,
+    flex: 1,
+  },
+  editGoalButton: {
+    margin: 0,
   },
   goalAmount: {
     fontSize: 18,
@@ -725,6 +801,21 @@ const styles = StyleSheet.create({
   modalBalance: {
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#E65100',
+    flex: 1,
+    lineHeight: 18,
   },
   input: {
     marginBottom: 16,
