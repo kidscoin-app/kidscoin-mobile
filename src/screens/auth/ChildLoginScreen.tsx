@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import {
   TextInput,
@@ -62,7 +63,11 @@ const ChildLoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>🎮</Text>
+          <Image
+            source={require('../../../assets/porco-feliz.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Olá, Criança!</Text>
           <Text style={styles.subtitle}>Digite seu username e PIN para entrar</Text>
         </View>
@@ -154,9 +159,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
-  logo: {
-    fontSize: 80,
-    marginBottom: 10,
+  logoImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
   },
   title: {
     fontSize: 36,
