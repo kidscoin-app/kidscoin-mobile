@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Keyboard, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -85,6 +85,8 @@ const SavingsScreen: React.FC = () => {
 
   // Atualizar meta de poupança
   const handleUpdateGoal = async () => {
+    Keyboard.dismiss(); // Fecha o teclado
+
     const goalValue = parseInt(newGoal);
     const currentBalance = savings?.balance || 0;
 
@@ -213,10 +215,11 @@ const SavingsScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
+    <>
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
       {/* Card Principal - Saldo */}
       <Card style={styles.balanceCard}>
         <Card.Content>
@@ -471,6 +474,12 @@ const SavingsScreen: React.FC = () => {
           <Text style={styles.modalSubtitle}>
             Meta atual: <Text style={styles.modalBalance}>{savingsGoal} moedas</Text>
           </Text>
+          <View style={styles.warningBox}>
+            <MaterialCommunityIcons name="information" size={20} color="#FF9800" />
+            <Text style={styles.warningText}>
+              A nova meta deve ser maior ou igual ao saldo atual da poupança ({savings?.balance || 0} moedas)
+            </Text>
+          </View>
           <TextInput
             label="Nova meta"
             value={newGoal}
@@ -499,6 +508,10 @@ const SavingsScreen: React.FC = () => {
         </Modal>
       </Portal>
 
+      {/* Espaçamento final */}
+      <View style={styles.bottomSpacer} />
+      </ScrollView>
+
       {/* Snackbar */}
       <Snackbar
         visible={snackbar.visible}
@@ -510,10 +523,7 @@ const SavingsScreen: React.FC = () => {
       >
         {snackbar.message}
       </Snackbar>
-
-      {/* Espaçamento final */}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </>
   );
 };
 
@@ -791,6 +801,21 @@ const styles = StyleSheet.create({
   modalBalance: {
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#E65100',
+    flex: 1,
+    lineHeight: 18,
   },
   input: {
     marginBottom: 16,
