@@ -2,7 +2,7 @@
  * Dashboard do Pai
  */
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, ActivityIndicator, Chip, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
@@ -100,15 +100,13 @@ const ParentDashboardScreen: React.FC = () => {
                 {pendingApprovalCount} tarefa{pendingApprovalCount > 1 ? 's' : ''} aguardando aprovação
               </Text>
             </View>
-            <Button
-              mode="contained"
+            <TouchableOpacity
+              style={styles.alertButton}
               onPress={() => navigation.navigate('Tasks' as never)}
-              buttonColor="#fff"
-              textColor={COLORS.parent.primary}
-              compact
+              activeOpacity={0.8}
             >
-              Ver
-            </Button>
+              <MaterialCommunityIcons name="arrow-right" size={18} color={COLORS.parent.primary} />
+            </TouchableOpacity>
           </Card.Content>
         </Card>
       )}
@@ -117,33 +115,73 @@ const ParentDashboardScreen: React.FC = () => {
       <View style={styles.statsGrid}>
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="account-group" size={32} color={COLORS.parent.primary} />
+            <View style={[styles.iconCircle, { backgroundColor: '#E8EAF6' }]}>
+              <MaterialCommunityIcons name="account-group" size={28} color={COLORS.parent.primary} />
+            </View>
             <Text style={styles.statValue}>{children.length}</Text>
             <Text style={styles.statLabel}>Crianças</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: COLORS.parent.primary }]}
+              onPress={() => navigation.navigate('Children' as never)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="cog" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Gerenciar</Text>
+            </TouchableOpacity>
           </Card.Content>
         </Card>
 
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="clipboard-list" size={32} color="#4CAF50" />
+            <View style={[styles.iconCircle, { backgroundColor: '#E8F5E9' }]}>
+              <MaterialCommunityIcons name="clipboard-list" size={28} color="#4CAF50" />
+            </View>
             <Text style={styles.statValue}>{tasks.length}</Text>
             <Text style={styles.statLabel}>Tarefas</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+              onPress={() => navigation.navigate('Tasks' as never)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Criar</Text>
+            </TouchableOpacity>
           </Card.Content>
         </Card>
 
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="gift" size={32} color="#FF9800" />
+            <View style={[styles.iconCircle, { backgroundColor: '#FFF3E0' }]}>
+              <MaterialCommunityIcons name="gift" size={28} color="#FF9800" />
+            </View>
             <Text style={styles.statValue}>{rewards.length}</Text>
             <Text style={styles.statLabel}>Recompensas</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
+              onPress={() => navigation.navigate('Rewards' as never)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Criar</Text>
+            </TouchableOpacity>
           </Card.Content>
         </Card>
 
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="check-circle" size={32} color="#8BC34A" />
+            <View style={[styles.iconCircle, { backgroundColor: '#F1F8E9' }]}>
+              <MaterialCommunityIcons name="check-circle" size={28} color="#8BC34A" />
+            </View>
             <Text style={styles.statValue}>{getTasksCountByStatus('APPROVED')}</Text>
             <Text style={styles.statLabel}>Aprovadas</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#8BC34A' }]}
+              onPress={() => navigation.navigate('Tasks' as never, { scrollToAssigned: true } as never)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="eye" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Ver todas</Text>
+            </TouchableOpacity>
           </Card.Content>
         </Card>
       </View>
@@ -151,24 +189,37 @@ const ParentDashboardScreen: React.FC = () => {
       {/* Resumo por Criança */}
       <Card style={styles.card}>
         <Card.Content>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="account-multiple" size={24} color={COLORS.parent.primary} />
-            <Text style={styles.cardTitle}>Resumo por Criança</Text>
+          <View style={styles.cardHeaderWithButton}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="account-multiple" size={24} color={COLORS.parent.primary} />
+              <Text style={styles.cardTitle}>Resumo por Criança</Text>
+            </View>
+            {children.length > 0 && (
+              <TouchableOpacity
+                style={styles.headerActionButton}
+                onPress={() => navigation.navigate('Children' as never)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="cog" size={16} color="#fff" />
+                <Text style={styles.headerActionButtonText}>Gerenciar</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {children.length === 0 ? (
             <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="account-plus" size={48} color={COLORS.common.textLight} />
+              <View style={[styles.emptyIconCircle]}>
+                <MaterialCommunityIcons name="account-plus" size={48} color={COLORS.parent.primary} />
+              </View>
               <Text style={styles.emptyText}>Nenhuma criança cadastrada</Text>
-              <Button
-                mode="contained"
-                onPress={() => navigation.navigate('Children' as never)}
+              <TouchableOpacity
                 style={styles.emptyButton}
-                buttonColor={COLORS.parent.primary}
-                icon="plus"
+                onPress={() => navigation.navigate('Children' as never)}
+                activeOpacity={0.8}
               >
-                Cadastrar Criança
-              </Button>
+                <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                <Text style={styles.emptyButtonText}>Cadastrar Criança</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             children.map((child) => {
@@ -218,9 +269,19 @@ const ParentDashboardScreen: React.FC = () => {
       {/* Status das Tarefas */}
       <Card style={styles.card}>
         <Card.Content>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="chart-donut" size={24} color={COLORS.parent.primary} />
-            <Text style={styles.cardTitle}>Status das Tarefas</Text>
+          <View style={styles.cardHeaderWithButton}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="chart-donut" size={24} color={COLORS.parent.primary} />
+              <Text style={styles.cardTitle}>Status das Tarefas</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => navigation.navigate('Tasks' as never, { scrollToAssigned: true } as never)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="eye" size={16} color="#fff" />
+              <Text style={styles.headerActionButtonText}>Ver todas</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.statusRow}>
@@ -248,43 +309,15 @@ const ParentDashboardScreen: React.FC = () => {
         </Card.Content>
       </Card>
 
-      {/* Atalhos Rápidos */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.cardTitle}>Atalhos Rápidos</Text>
-          <View style={styles.quickActions}>
-            <Button
-              mode="contained"
-              onPress={() => navigation.navigate('Tasks' as never)}
-              style={styles.quickButton}
-              buttonColor={COLORS.parent.primary}
-              icon="plus"
-            >
-              Nova Tarefa
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate('Rewards' as never)}
-              style={styles.quickButton}
-              textColor={COLORS.parent.primary}
-              icon="gift"
-            >
-              Nova Recompensa
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-
       {/* Botão de Logout */}
-      <Button
-        mode="contained"
-        onPress={signOut}
+      <TouchableOpacity
         style={styles.logoutButton}
-        buttonColor="#f44336"
-        icon="logout"
+        onPress={signOut}
+        activeOpacity={0.8}
       >
-        Sair da Conta
-      </Button>
+        <MaterialCommunityIcons name="logout" size={20} color="#fff" />
+        <Text style={styles.logoutButtonText}>Sair da Conta</Text>
+      </TouchableOpacity>
 
       <View style={styles.bottomSpacer} />
     </ScrollView>
@@ -327,7 +360,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: COLORS.parent.primary,
+    borderRadius: 16,
     elevation: 4,
+    shadowColor: COLORS.parent.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   alertContent: {
     flexDirection: 'row',
@@ -349,6 +387,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#E3F2FD',
   },
+  alertButton: {
+    backgroundColor: '#fff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -359,31 +410,93 @@ const styles = StyleSheet.create({
     width: '48%',
     margin: '1%',
     backgroundColor: '#fff',
-    elevation: 3,
+    borderRadius: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   statContent: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 20,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: COLORS.common.text,
-    marginTop: 8,
+    marginTop: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.common.textLight,
     marginTop: 4,
+    marginBottom: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  headerActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.parent.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 4,
+    shadowColor: COLORS.parent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerActionButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   card: {
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: '#fff',
+    borderRadius: 16,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   cardHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardHeaderWithButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -397,14 +510,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 30,
   },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E8EAF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.common.textLight,
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 20,
   },
   emptyButton: {
-    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.parent.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    gap: 8,
+    shadowColor: COLORS.parent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   childItem: {
     flexDirection: 'row',
@@ -471,18 +609,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.common.text,
   },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  quickButton: {
-    flex: 1,
-  },
   logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f44336',
     marginHorizontal: 16,
     marginTop: 16,
-    paddingVertical: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#f44336',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   bottomSpacer: {
     height: 30,
