@@ -1,8 +1,9 @@
 /**
  * Tela para gerenciar tarefas (Parent)
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
+import { useRoute } from '@react-navigation/native';
 import {
   Button,
   Card,
@@ -42,6 +43,10 @@ const WEEKDAYS = [
 ];
 
 const ManageTasksScreen: React.FC = () => {
+  const route = useRoute();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const assignedTasksRef = useRef<View>(null);
+
   // Formulário
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -81,6 +86,22 @@ const ManageTasksScreen: React.FC = () => {
     loadChildren();
     loadTasks();
   }, []);
+
+  // Scroll automático para tarefas atribuídas
+  useEffect(() => {
+    const params = route.params as { scrollToAssigned?: boolean } | undefined;
+    if (params?.scrollToAssigned && assignedTasksRef.current) {
+      setTimeout(() => {
+        assignedTasksRef.current?.measureLayout(
+          scrollViewRef.current as any,
+          (x, y) => {
+            scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
+          },
+          () => {}
+        );
+      }, 300);
+    }
+  }, [route.params]);
 
   /**
    * Carregar crianças da família
@@ -363,7 +384,7 @@ const ManageTasksScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView ref={scrollViewRef} style={styles.scrollView}>
         <View style={styles.content}>
         {/* Formulário de criar tarefa */}
         <Card style={styles.card}>
@@ -572,9 +593,10 @@ const ManageTasksScreen: React.FC = () => {
         </Card>
 
         {/* Lista de tarefas */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Tarefas Atribuídas</Text>
+        <View ref={assignedTasksRef} collapsable={false}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Tarefas Atribuídas</Text>
 
             {/* Filtro de categoria */}
             <Text style={styles.label}>Filtrar por categoria</Text>
@@ -723,6 +745,7 @@ const ManageTasksScreen: React.FC = () => {
             )}
           </Card.Content>
         </Card>
+        </View>
         </View>
       </ScrollView>
 
