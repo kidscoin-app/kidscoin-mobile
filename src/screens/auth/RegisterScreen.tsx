@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import {
   TextInput,
@@ -72,7 +73,11 @@ const RegisterScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>💰</Text>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Criar Conta</Text>
           <Text style={styles.subtitle}>Para pais e responsáveis</Text>
         </View>
@@ -175,9 +180,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
-  logo: {
-    fontSize: 60,
-    marginBottom: 10,
+  logoImage: {
+    width: 180,
+    height: 80,
+    marginBottom: 20,
   },
   title: {
     fontSize: 32,
