@@ -2,9 +2,10 @@
  * Dashboard da Criança
  */
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, Card, ProgressBar, ActivityIndicator, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
 import { gamificationService, walletService, taskService } from '../../services';
@@ -12,6 +13,7 @@ import { Gamification, Wallet, TaskAssignment } from '../../types';
 
 const ChildDashboardScreen: React.FC = () => {
   const { user } = useAuth();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [gamification, setGamification] = useState<Gamification | null>(null);
@@ -156,9 +158,21 @@ const ChildDashboardScreen: React.FC = () => {
       {/* Tarefas Pendentes */}
       <Card style={styles.tasksCard}>
         <Card.Content>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="format-list-checks" size={24} color={COLORS.child.primary} />
-            <Text style={styles.cardTitle}>Tarefas para Fazer</Text>
+          <View style={styles.cardHeaderWithButton}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="format-list-checks" size={24} color={COLORS.child.primary} />
+              <Text style={styles.cardTitle}>Tarefas para Fazer</Text>
+            </View>
+            {pendingTasks.length > 0 && (
+              <TouchableOpacity
+                style={styles.headerActionButton}
+                onPress={() => navigation.navigate('Tasks' as never)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="arrow-right" size={16} color="#fff" />
+                <Text style={styles.headerActionButtonText}>Ver todas</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {pendingTasks.length === 0 ? (
@@ -279,7 +293,12 @@ const styles = StyleSheet.create({
   },
   mainCard: {
     flex: 1,
+    borderRadius: 16,
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   coinsCard: {
     backgroundColor: '#4CAF50',
@@ -306,7 +325,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: '#fff',
+    borderRadius: 16,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   xpHeader: {
     flexDirection: 'row',
@@ -339,10 +363,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: '#fff',
+    borderRadius: 16,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   cardHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardHeaderWithButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -351,6 +385,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.common.text,
     marginLeft: 10,
+  },
+  headerActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.child.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 4,
+    shadowColor: COLORS.child.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerActionButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   emptyTasks: {
     alignItems: 'center',
@@ -394,7 +447,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: '#FFF9C4',
+    borderRadius: 16,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   badgeHeader: {
     flexDirection: 'row',
@@ -430,9 +488,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   statItem: {
     flex: 1,
