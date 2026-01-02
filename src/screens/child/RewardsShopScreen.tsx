@@ -5,12 +5,13 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Chip, Snackbar, Text } from "react-native-paper";
 import { getErrorMessage, rewardService, walletService } from "../../services";
-import { Reward } from "../../types";
+import { Reward, Redemption } from "../../types";
 import { COLORS } from "../../utils/constants";
 
 const RewardsShopScreen: React.FC = () => {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [balance, setBalance] = useState(0);
+  const [pendingRedemptions, setPendingRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -20,17 +21,19 @@ const RewardsShopScreen: React.FC = () => {
   }, []);
 
   /**
-   * Carregar recompensas e saldo
+   * Carregar recompensas, saldo e pedidos pendentes
    */
   const loadData = async () => {
     try {
-      // Carregar recompensas ativas e saldo em paralelo
-      const [rewardsData, walletData] = await Promise.all([
+      // Carregar recompensas ativas, saldo e pedidos pendentes em paralelo
+      const [rewardsData, walletData, redemptionsData] = await Promise.all([
         rewardService.getRewards(true), // activeOnly = true
         walletService.getWallet(),
+        rewardService.getRedemptions('PENDING'), // Apenas pendentes
       ]);
       setRewards(rewardsData);
       setBalance(walletData.balance);
+      setPendingRedemptions(redemptionsData);
     } catch (err: any) {
       console.error("Erro ao carregar dados:", err);
     }
@@ -67,6 +70,13 @@ const RewardsShopScreen: React.FC = () => {
    */
   const hasEnoughCoins = (cost: number) => balance >= cost;
 
+  /**
+   * Verificar se a recompensa já tem um pedido pendente
+   */
+  const hasPendingRedemption = (rewardId: string) => {
+    return pendingRedemptions.some(redemption => redemption.reward.id === rewardId);
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
@@ -99,6 +109,24 @@ const RewardsShopScreen: React.FC = () => {
         ) : (
           rewards.map((reward) => {
             const canAfford = hasEnoughCoins(reward.coinCost);
+            const isPending = hasPendingRedemption(reward.id);
+            const isDisabled = !canAfford || loading || isPending;
+
+            // Determinar texto e ícone do botão
+            let buttonText = "Pedir esta recompensa!";
+            let buttonIcon = "gift";
+            let buttonColor = COLORS.child.primary;
+
+            if (isPending) {
+              buttonText = "Esperando aprovação...";
+              buttonIcon = "clock-outline";
+              buttonColor = COLORS.child.warning;
+            } else if (!canAfford) {
+              buttonText = "Moedas insuficientes";
+              buttonIcon = "lock";
+              buttonColor = COLORS.common.textLight;
+            }
+
             return (
               <Card key={reward.id} style={styles.rewardCard}>
                 <Card.Content>
@@ -129,21 +157,23 @@ const RewardsShopScreen: React.FC = () => {
                   <Button
                     mode="contained"
                     onPress={() => handleRequestRedemption(reward)}
-                    disabled={!canAfford || loading}
+                    disabled={isDisabled}
                     style={styles.redeemButton}
-                    buttonColor={
-                      canAfford ? COLORS.child.primary : COLORS.common.textLight
-                    }
-                    icon={canAfford ? "gift" : "lock"}
+                    buttonColor={buttonColor}
+                    icon={buttonIcon}
                   >
-                    {canAfford
-                      ? "Pedir esta recompensa!"
-                      : "Moedas insuficientes"}
+                    {buttonText}
                   </Button>
 
-                  {!canAfford && (
+                  {!canAfford && !isPending && (
                     <Text style={styles.needMoreText}>
                       Você precisa de mais {reward.coinCost - balance} moedas 💪
+                    </Text>
+                  )}
+
+                  {isPending && (
+                    <Text style={styles.pendingText}>
+                      Seu pedido está sendo analisado 🕐
                     </Text>
                   )}
                 </Card.Content>
@@ -278,6 +308,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   needMoreText: {
+    fontSize: 12,
+    color: COLORS.child.warning,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  pendingText: {
     fontSize: 12,
     color: COLORS.child.warning,
     textAlign: "center",
