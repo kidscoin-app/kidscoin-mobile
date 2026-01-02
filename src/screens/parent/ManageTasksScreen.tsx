@@ -693,14 +693,16 @@ const ManageTasksScreen: React.FC = () => {
                           </Text>
                         </View>
 
-                        {/* Botão de excluir na mesma linha */}
-                        <IconButton
-                          icon="delete"
-                          iconColor={COLORS.common.error}
-                          size={20}
-                          onPress={() => openDeleteDialog(assignment)}
-                          style={styles.deleteButton}
-                        />
+                        {/* Botão de excluir na mesma linha - apenas para tarefas não aprovadas */}
+                        {assignment.status !== "APPROVED" && (
+                          <IconButton
+                            icon="delete"
+                            iconColor={COLORS.common.error}
+                            size={20}
+                            onPress={() => openDeleteDialog(assignment)}
+                            style={styles.deleteButton}
+                          />
+                        )}
                       </View>
 
                       {/* Botões de ação para tarefas COMPLETED */}
