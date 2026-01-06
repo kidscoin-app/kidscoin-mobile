@@ -1,65 +1,50 @@
 /**
  * Tela da loja de recompensas (Child)
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Card, Chip, Snackbar, Text } from "react-native-paper";
-import { getErrorMessage, rewardService, walletService } from "../../services";
-import { Reward } from "../../types";
-import { COLORS } from "../../utils/constants";
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, Chip, Snackbar, Text } from 'react-native-paper';
+import { getErrorMessage } from '../../services';
+import { Reward } from '../../types';
+import { COLORS } from '../../utils/constants';
+import { useRewards, useWallet, useRequestRedemption } from '../../hooks';
 
 const RewardsShopScreen: React.FC = () => {
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [balance, setBalance] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  // UI State
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // React Query hooks
+  const { data: rewards = [] } = useRewards({ activeOnly: true });
+  const { data: wallet } = useWallet();
 
-  /**
-   * Carregar recompensas e saldo
-   */
-  const loadData = async () => {
-    try {
-      // Carregar recompensas ativas e saldo em paralelo
-      const [rewardsData, walletData] = await Promise.all([
-        rewardService.getRewards(true), // activeOnly = true
-        walletService.getWallet(),
-      ]);
-      setRewards(rewardsData);
-      setBalance(walletData.balance);
-    } catch (err: any) {
-      console.error("Erro ao carregar dados:", err);
-    }
-  };
+  const balance = wallet?.balance || 0;
+
+  const requestRedemption = useRequestRedemption({
+    onSuccess: (_, variables) => {
+      const reward = rewards.find(r => r.id === variables.rewardId);
+      setSuccess(`🎉 Pedido de "${reward?.name || 'recompensa'}" enviado! Aguarde aprovação.`);
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
 
   /**
    * Solicitar resgate de recompensa
    */
-  const handleRequestRedemption = async (reward: Reward) => {
-    setError("");
-    setSuccess("");
+  const handleRequestRedemption = (reward: Reward) => {
+    setError('');
+    setSuccess('');
 
     // Verificar se tem moedas suficientes
     if (balance < reward.coinCost) {
-      setError("Você não tem moedas suficientes! 😢");
+      setError('Você não tem moedas suficientes! 😢');
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await rewardService.requestRedemption({ rewardId: reward.id });
-      setSuccess(`🎉 Pedido de "${reward.name}" enviado! Aguarde aprovação.`);
-      await loadData(); // Recarregar dados
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    requestRedemption.mutate({ rewardId: reward.id });
   };
 
   /**
@@ -129,16 +114,17 @@ const RewardsShopScreen: React.FC = () => {
                   <Button
                     mode="contained"
                     onPress={() => handleRequestRedemption(reward)}
-                    disabled={!canAfford || loading}
+                    disabled={!canAfford || requestRedemption.isPending}
+                    loading={requestRedemption.isPending}
                     style={styles.redeemButton}
                     buttonColor={
                       canAfford ? COLORS.child.primary : COLORS.common.textLight
                     }
-                    icon={canAfford ? "gift" : "lock"}
+                    icon={canAfford ? 'gift' : 'lock'}
                   >
                     {canAfford
-                      ? "Pedir esta recompensa!"
-                      : "Moedas insuficientes"}
+                      ? 'Pedir esta recompensa!'
+                      : 'Moedas insuficientes'}
                   </Button>
 
                   {!canAfford && (
@@ -156,7 +142,7 @@ const RewardsShopScreen: React.FC = () => {
       {/* Snackbars */}
       <Snackbar
         visible={!!error}
-        onDismiss={() => setError("")}
+        onDismiss={() => setError('')}
         duration={3000}
         style={styles.errorSnackbar}
       >
@@ -165,7 +151,7 @@ const RewardsShopScreen: React.FC = () => {
 
       <Snackbar
         visible={!!success}
-        onDismiss={() => setSuccess("")}
+        onDismiss={() => setSuccess('')}
         duration={4000}
         style={styles.successSnackbar}
       >
@@ -188,23 +174,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.child.primary,
   },
   balanceContent: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 10,
   },
   balanceLabel: {
     fontSize: 18,
     color: COLORS.common.white,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 5,
   },
   balanceValue: {
     fontSize: 36,
     color: COLORS.common.white,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.common.text,
     marginBottom: 5,
   },
@@ -220,13 +206,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: COLORS.common.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 10,
   },
   emptySubtext: {
     fontSize: 14,
     color: COLORS.common.textLight,
-    textAlign: "center",
+    textAlign: 'center',
   },
   rewardCard: {
     marginBottom: 15,
@@ -234,14 +220,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   rewardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 10,
   },
   rewardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   rewardIcon: {
@@ -250,7 +236,7 @@ const styles = StyleSheet.create({
   },
   rewardName: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.common.text,
     flex: 1,
   },
@@ -265,7 +251,7 @@ const styles = StyleSheet.create({
   },
   costChipText: {
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.common.white,
   },
   rewardDescription: {
@@ -280,9 +266,9 @@ const styles = StyleSheet.create({
   needMoreText: {
     fontSize: 12,
     color: COLORS.child.warning,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 8,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   errorSnackbar: {
     backgroundColor: COLORS.common.error,

@@ -1,48 +1,68 @@
 /**
  * Tela para gerenciar crianças
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Divider, IconButton, List, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
-import { getErrorMessage, userService } from '../../services';
+import {
+  Button,
+  Card,
+  Dialog,
+  Divider,
+  IconButton,
+  List,
+  Portal,
+  Snackbar,
+  Text,
+  TextInput,
+} from 'react-native-paper';
+import { useChildren, useCreateChild, useDeleteChild } from '../../hooks';
+import { getErrorMessage } from '../../services';
 import { User } from '../../types';
 import { COLORS } from '../../utils/constants';
 
 const ManageChildrenScreen: React.FC = () => {
+  // Form state
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [age, setAge] = useState('');
   const [pin, setPin] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [loadingChildren, setLoadingChildren] = useState(false);
-  const [children, setChildren] = useState<User[]>([]);
+
+  // UI state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Dialog de exclusão
+  // Dialog state
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingChild, setDeletingChild] = useState<User | null>(null);
 
-  // Carregar lista de crianças ao montar componente
-  useEffect(() => {
-    loadChildren();
-  }, []);
+  // React Query hooks
+  const { data: children = [], isLoading: loadingChildren } = useChildren();
 
-  /**
-   * Carregar crianças da família
-   */
-  const loadChildren = async () => {
-    setLoadingChildren(true);
-    try {
-      const data = await userService.getChildren();
-      console.log('👶 Crianças carregadas:', JSON.stringify(data, null, 2));
-      setChildren(data);
-    } catch (err: any) {
-      console.error('Erro ao carregar crianças:', err);
-    } finally {
-      setLoadingChildren(false);
-    }
-  };
+  const createChild = useCreateChild({
+    onSuccess: (newChild) => {
+      setSuccess(`${newChild.fullName} foi criado(a)! Use "${newChild.username}" para fazer login.`);
+      // Limpar formulário
+      setFullName('');
+      setUsername('');
+      setAge('');
+      setPin('');
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  const deleteChild = useDeleteChild({
+    onSuccess: () => {
+      setSuccess(`${deletingChild?.fullName} foi excluído(a) com sucesso.`);
+      setDeleteDialogVisible(false);
+      setDeletingChild(null);
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
 
   /**
    * Validar formulário
@@ -100,7 +120,7 @@ const ManageChildrenScreen: React.FC = () => {
   /**
    * Criar nova criança
    */
-  const handleCreateChild = async () => {
+  const handleCreateChild = () => {
     setError('');
     setSuccess('');
 
@@ -108,32 +128,12 @@ const ManageChildrenScreen: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const newChild = await userService.createChild({
-        fullName: fullName.trim(),
-        username: username.trim(),
-        age: parseInt(age),
-        pin: pin.trim(),
-      });
-
-      setSuccess(`${newChild.fullName} foi criado(a)! Use "${username}" para fazer login.`);
-
-      // Limpar formulário
-      setFullName('');
-      setUsername('');
-      setAge('');
-      setPin('');
-
-      // Recarregar lista
-      await loadChildren();
-    } catch (err: any) {
-      const message = getErrorMessage(err);
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+    createChild.mutate({
+      fullName: fullName.trim(),
+      username: username.trim(),
+      age: parseInt(age),
+      pin: pin.trim(),
+    });
   };
 
   /**
@@ -147,20 +147,11 @@ const ManageChildrenScreen: React.FC = () => {
   /**
    * Deletar criança
    */
-  const handleDeleteChild = async () => {
+  const handleDeleteChild = () => {
     if (!deletingChild) {
       return;
     }
-
-    try {
-      await userService.deleteChild(deletingChild.id);
-      setSuccess(`${deletingChild.fullName} foi excluído(a) com sucesso.`);
-      setDeleteDialogVisible(false);
-      setDeletingChild(null);
-      await loadChildren();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
+    deleteChild.mutate(deletingChild.id);
   };
 
   return (
@@ -224,8 +215,8 @@ const ManageChildrenScreen: React.FC = () => {
               <Button
                 mode="contained"
                 onPress={handleCreateChild}
-                loading={loading}
-                disabled={loading}
+                loading={createChild.isPending}
+                disabled={createChild.isPending}
                 style={styles.createButton}
                 buttonColor={COLORS.parent.primary}
                 icon="plus"
@@ -248,23 +239,21 @@ const ManageChildrenScreen: React.FC = () => {
                 <View>
                   {children.map((child, index) => {
                     // Extrair username do email se não vier do backend
-                    let username = 'sem-username';
+                    let displayUsername = 'sem-username';
 
                     if (child.username) {
-                      // 1. Prioridade: username do backend
-                      username = child.username;
+                      displayUsername = child.username;
                     } else if (child.email) {
-                      // 2. Extrai do email (ex: gustavo.rodrigues.xxx@child.local → gustavo.rodrigues.xxx)
-                      username = child.email.split('@')[0];
+                      displayUsername = child.email.split('@')[0];
                     }
 
                     return (
                       <React.Fragment key={child.id}>
                         <List.Item
                           title={child.fullName}
-                          description={`@${username}`}
+                          description={`@${displayUsername}`}
                           left={(props) => <List.Icon {...props} icon="account-child" />}
-                          right={(props) => (
+                          right={() => (
                             <IconButton
                               icon="delete"
                               iconColor={COLORS.common.error}
@@ -305,7 +294,13 @@ const ManageChildrenScreen: React.FC = () => {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDeleteDialogVisible(false)}>Cancelar</Button>
-            <Button onPress={handleDeleteChild} textColor={COLORS.common.error} buttonColor="transparent">
+            <Button
+              onPress={handleDeleteChild}
+              textColor={COLORS.common.error}
+              buttonColor="transparent"
+              loading={deleteChild.isPending}
+              disabled={deleteChild.isPending}
+            >
               Excluir Permanentemente
             </Button>
           </Dialog.Actions>

@@ -5,6 +5,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services';
 import { User, LoginData, RegisterData } from '../types';
 import { getErrorMessage } from '../services/api';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthContextData {
   user: User | null;
@@ -83,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     try {
       await authService.logout();
+      queryClient.clear(); // Limpa cache do React Query para evitar dados de outro usuário
       setUser(null);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
