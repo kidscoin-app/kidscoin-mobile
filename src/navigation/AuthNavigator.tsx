@@ -4,11 +4,14 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
+import ParentLoginScreen from '../screens/auth/ParentLoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import ChildLoginScreen from '../screens/auth/ChildLoginScreen';
+import { COLORS } from '../utils/constants';
 
 export type AuthStackParamList = {
   Login: undefined;
+  ParentLogin: undefined;
   Register: undefined;
   ChildLogin: undefined;
 };
@@ -21,9 +24,13 @@ const AuthNavigator: React.FC = () => {
       initialRouteName="Login"
       screenOptions={{
         headerShown: false,
+        headerStyle: {
+          backgroundColor: COLORS.child.primary,
+        },
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ParentLogin" component={ParentLoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ChildLogin" component={ChildLoginScreen} />
     </Stack.Navigator>

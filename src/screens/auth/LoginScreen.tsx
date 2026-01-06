@@ -1,25 +1,18 @@
 /**
- * Tela de Login
+ * Tela de Selecao de Login
  */
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Image,
+  TouchableOpacity,
 } from 'react-native';
-import {
-  TextInput,
-  Button,
-  Text,
-  Surface,
-  Snackbar,
-} from 'react-native-paper';
+import { Text, Surface } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAuth } from '../../contexts';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 
@@ -30,198 +23,152 @@ type LoginScreenNavigationProp = StackNavigationProp<
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { signIn } = useAuth();
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Preencha todos os campos');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await signIn({ emailOrUsername: email, password });
-    } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      contentContainerStyle={styles.scrollContent}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <Image
-            source={require('../../../assets/logo-porco.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.subtitle}>Educação Financeira Infantil</Text>
-        </View>
+      <View style={styles.header}>
+        <Image
+          source={require('../../../assets/logo-porco.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Bem-vindo de volta!</Text>
+        <Text style={styles.subtitle}>Quem esta usando o app?</Text>
+      </View>
 
-        <Surface style={styles.card} elevation={2}>
-          <Text style={styles.cardTitle}>Entrar</Text>
+      <View style={styles.cardsContainer}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ParentLogin')}
+          activeOpacity={0.8}
+        >
+          <Surface style={styles.card} elevation={3}>
+            <View style={[styles.iconContainer, { backgroundColor: COLORS.parent.primary + '20' }]}>
+              <MaterialCommunityIcons name="account-tie" size={40} color={COLORS.parent.primary} />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>Sou Pai/Mae</Text>
+              <Text style={styles.cardDescription}>
+                Gerenciar tarefas, criancas e recompensas
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
+          </Surface>
+        </TouchableOpacity>
 
-          <TextInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            mode="outlined"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.input}
-            left={<TextInput.Icon icon="email" />}
-          />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ChildLogin')}
+          activeOpacity={0.8}
+        >
+          <Surface style={styles.card} elevation={3}>
+            <View style={[styles.iconContainer, { backgroundColor: COLORS.child.primary + '20' }]}>
+              <MaterialCommunityIcons name="human-child" size={40} color={COLORS.child.primary} />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>Sou Crianca</Text>
+              <Text style={styles.cardDescription}>
+                Ver minhas tarefas e recompensas
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
+          </Surface>
+        </TouchableOpacity>
+      </View>
 
-          <TextInput
-            label="Senha"
-            value={password}
-            onChangeText={setPassword}
-            mode="outlined"
-            secureTextEntry={!showPassword}
-            style={styles.input}
-            left={<TextInput.Icon icon="lock" />}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword(!showPassword)}
-              />
-            }
-          />
-
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={loading}
-            disabled={loading}
-            style={styles.button}
-            buttonColor={COLORS.parent.primary}
-          >
-            Entrar
-          </Button>
-
-          <View style={styles.linkContainer}>
-            <Text style={styles.linkText}>Não tem conta? </Text>
-            <Text
-              style={styles.link}
-              onPress={() => navigation.navigate('Register')}
-            >
-              Cadastre-se
-            </Text>
-          </View>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ou</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <Button
-            mode="outlined"
-            onPress={() => navigation.navigate('ChildLogin')}
-            style={styles.childButton}
-            textColor={COLORS.child.primary}
-          >
-            Sou uma criança 👦👧
-          </Button>
-        </Surface>
-      </ScrollView>
-
-      <Snackbar
-        visible={!!error}
-        onDismiss={() => setError('')}
-        duration={3000}
-      >
-        {error}
-      </Snackbar>
-    </KeyboardAvoidingView>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Nao tem conta? </Text>
+        <Text
+          style={styles.footerLink}
+          onPress={() => navigation.navigate('Register')}
+        >
+          Cadastre-se
+        </Text>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.parent.background,
+    backgroundColor: COLORS.common.white,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
   },
   header: {
+    backgroundColor: COLORS.child.primary,
+    padding: 20,
+    paddingTop: 80,
+    paddingBottom: 60,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     alignItems: 'center',
-    marginBottom: 30,
   },
   logoImage: {
-    width: 200,
-    height: 200,
+    width: 150,
+    height: 150,
     marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.common.white,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: COLORS.common.textLight,
+    color: COLORS.common.white,
+    opacity: 0.9,
+  },
+  cardsContainer: {
+    padding: 20,
+    marginTop: -30,
   },
   card: {
-    padding: 20,
-    borderRadius: 12,
-    backgroundColor: COLORS.common.white,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: COLORS.common.text,
-  },
-  input: {
-    marginBottom: 15,
-  },
-  button: {
-    marginTop: 10,
-    paddingVertical: 6,
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 15,
-  },
-  linkText: {
-    color: COLORS.common.textLight,
-  },
-  link: {
-    color: COLORS.parent.primary,
-    fontWeight: 'bold',
-  },
-  divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.common.white,
+    marginBottom: 16,
   },
-  dividerLine: {
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContent: {
     flex: 1,
-    height: 1,
-    backgroundColor: COLORS.common.border,
+    marginLeft: 16,
   },
-  dividerText: {
-    marginHorizontal: 10,
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.common.text,
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 14,
     color: COLORS.common.textLight,
   },
-  childButton: {
-    borderColor: COLORS.child.primary,
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  footerText: {
+    color: COLORS.common.textLight,
+    fontSize: 16,
+  },
+  footerLink: {
+    color: COLORS.parent.primary,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
