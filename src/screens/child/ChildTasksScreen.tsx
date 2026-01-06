@@ -1,8 +1,9 @@
 /**
  * Tela de tarefas da criança
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import React, { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   Card,
@@ -10,64 +11,55 @@ import {
   SegmentedButtons,
   Snackbar,
   Text,
-} from "react-native-paper";
-import { getErrorMessage, taskService } from "../../services";
-import { AssignmentStatus, TaskAssignment, TaskCategory } from "../../types";
-import { COLORS } from "../../utils/constants";
+} from 'react-native-paper';
+import { getErrorMessage } from '../../services';
+import { AssignmentStatus, TaskCategory } from '../../types';
+import { COLORS } from '../../utils/constants';
+import { useTasks, useCompleteTask, useRetryTask } from '../../hooks';
 
 // Categorias disponíveis
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
-  { value: "LIMPEZA", label: "Limpeza", icon: "broom" },
-  { value: "ORGANIZACAO", label: "Organização", icon: "package-variant" },
-  { value: "ESTUDOS", label: "Estudos", icon: "book-open" },
-  { value: "CUIDADOS", label: "Cuidados", icon: "heart" },
-  { value: "OUTRAS", label: "Outras", icon: "dots-horizontal" },
+  { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom' },
+  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant' },
+  { value: 'ESTUDOS', label: 'Estudos', icon: 'book-open' },
+  { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart' },
+  { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal' },
 ];
 
 const ChildTasksScreen: React.FC = () => {
-  const [tasks, setTasks] = useState<TaskAssignment[]>([]);
-  const [filteredTasks, setFilteredTasks] = useState<TaskAssignment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | AssignmentStatus>("all");
+  // UI State
+  const [filter, setFilter] = useState<'all' | AssignmentStatus>('all');
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  // React Query hooks
+  const { data: tasks = [], isLoading: loading } = useTasks();
 
-  useEffect(() => {
-    filterTasks();
-  }, [tasks, filter, categoryFilter]);
-
-  /**
-   * Carregar tarefas
-   */
-  const loadTasks = async () => {
-    setLoading(true);
-    try {
-      console.log("👶 Criança carregando tarefas...");
-      const data = await taskService.getTasks();
-      console.log("✅ Tarefas recebidas:", data.length);
-      setTasks(data);
-    } catch (err: any) {
-      console.error("❌ Erro ao carregar tarefas da criança:", err);
-      console.error("Detalhes:", err.response?.data);
+  const completeTask = useCompleteTask({
+    onSuccess: () => {
+      setSuccess('Tarefa concluída! Aguarde a aprovação do responsável.');
+    },
+    onError: (err) => {
       setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  /**
-   * Filtrar tarefas
-   */
-  const filterTasks = () => {
+  const retryTask = useRetryTask({
+    onSuccess: () => {
+      setSuccess('Tarefa pronta para refazer! Mostre que você consegue! 💪');
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  // Filtragem de tarefas
+  const filteredTasks = useMemo(() => {
     let result = tasks;
 
     // Filtrar por status
-    if (filter !== "all") {
+    if (filter !== 'all') {
       result = result.filter((t) => t.status === filter);
     }
 
@@ -76,33 +68,21 @@ const ChildTasksScreen: React.FC = () => {
       result = result.filter((t) => t.task.category === categoryFilter);
     }
 
-    setFilteredTasks(result);
-  };
+    return result;
+  }, [tasks, filter, categoryFilter]);
 
   /**
    * Completar tarefa
    */
-  const handleComplete = async (assignmentId: string) => {
-    try {
-      await taskService.completeTask(assignmentId);
-      setSuccess("Tarefa concluída! Aguarde a aprovação do responsável.");
-      await loadTasks();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
+  const handleComplete = (assignmentId: string) => {
+    completeTask.mutate(assignmentId);
   };
 
   /**
    * Refazer tarefa rejeitada
    */
-  const handleRetry = async (assignmentId: string) => {
-    try {
-      await taskService.retryTask(assignmentId);
-      setSuccess("Tarefa pronta para refazer! Mostre que você consegue! 💪");
-      await loadTasks();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
+  const handleRetry = (assignmentId: string) => {
+    retryTask.mutate(assignmentId);
   };
 
   /**
@@ -110,16 +90,16 @@ const ChildTasksScreen: React.FC = () => {
    */
   const getCategoryEmoji = (category: string) => {
     switch (category) {
-      case "LIMPEZA":
-        return "🧹";
-      case "ORGANIZACAO":
-        return "📦";
-      case "ESTUDOS":
-        return "📚";
-      case "CUIDADOS":
-        return "❤️";
+      case 'LIMPEZA':
+        return '🧹';
+      case 'ORGANIZACAO':
+        return '📦';
+      case 'ESTUDOS':
+        return '📚';
+      case 'CUIDADOS':
+        return '❤️';
       default:
-        return "✨";
+        return '✨';
     }
   };
 
@@ -128,13 +108,13 @@ const ChildTasksScreen: React.FC = () => {
    */
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "PENDING":
+      case 'PENDING':
         return COLORS.child.warning;
-      case "COMPLETED":
+      case 'COMPLETED':
         return COLORS.child.primary;
-      case "APPROVED":
+      case 'APPROVED':
         return COLORS.child.success;
-      case "REJECTED":
+      case 'REJECTED':
         return COLORS.common.error;
       default:
         return COLORS.common.textLight;
@@ -146,14 +126,14 @@ const ChildTasksScreen: React.FC = () => {
    */
   const getStatusText = (status: string) => {
     switch (status) {
-      case "PENDING":
-        return "⏳ Fazer";
-      case "COMPLETED":
-        return "⏰ Revisando";
-      case "APPROVED":
-        return "✅ Aprovada";
-      case "REJECTED":
-        return "❌ Rejeitada";
+      case 'PENDING':
+        return '⏳ Fazer';
+      case 'COMPLETED':
+        return '⏰ Revisando';
+      case 'APPROVED':
+        return '✅ Aprovada';
+      case 'REJECTED':
+        return '❌ Rejeitada';
       default:
         return status;
     }
@@ -176,18 +156,18 @@ const ChildTasksScreen: React.FC = () => {
           density="small"
           buttons={[
             {
-              value: "all",
+              value: 'all',
               label: `Todas (${tasks.length})`,
               style: styles.segmentButton,
             },
             {
-              value: "PENDING",
-              label: `Fazer (${countByStatus("PENDING")})`,
+              value: 'PENDING',
+              label: `Fazer (${countByStatus('PENDING')})`,
               style: styles.segmentButton,
             },
             {
-              value: "COMPLETED",
-              label: `Revisando (${countByStatus("COMPLETED")})`,
+              value: 'COMPLETED',
+              label: `Revisando (${countByStatus('COMPLETED')})`,
               style: styles.segmentButton,
             },
           ]}
@@ -208,7 +188,7 @@ const ChildTasksScreen: React.FC = () => {
                 styles.chip,
                 categoryFilter === null && styles.chipSelected,
               ]}
-              mode={categoryFilter === null ? "flat" : "outlined"}
+              mode={categoryFilter === null ? 'flat' : 'outlined'}
               textStyle={
                 categoryFilter === null
                   ? styles.chipTextSelected
@@ -226,7 +206,7 @@ const ChildTasksScreen: React.FC = () => {
                   onPress={() => setCategoryFilter(cat.value)}
                   style={[styles.chip, isSelected && styles.chipSelected]}
                   icon={cat.icon}
-                  mode={isSelected ? "flat" : "outlined"}
+                  mode={isSelected ? 'flat' : 'outlined'}
                   textStyle={
                     isSelected
                       ? styles.chipTextSelected
@@ -248,18 +228,18 @@ const ChildTasksScreen: React.FC = () => {
           <Card style={styles.emptyCard}>
             <Card.Content>
               <Text style={styles.emptyTitle}>
-                {filter === "PENDING"
-                  ? "🎉 Parabéns!"
-                  : filter === "COMPLETED"
-                  ? "⏰ Aguardando aprovação"
-                  : "📋 Nenhuma tarefa"}
+                {filter === 'PENDING'
+                  ? '🎉 Parabéns!'
+                  : filter === 'COMPLETED'
+                  ? '⏰ Aguardando aprovação'
+                  : '📋 Nenhuma tarefa'}
               </Text>
               <Text style={styles.emptyText}>
-                {filter === "PENDING"
-                  ? "Você não tem tarefas pendentes!"
-                  : filter === "COMPLETED"
-                  ? "Nenhuma tarefa aguardando aprovação."
-                  : "Você ainda não tem tarefas atribuídas."}
+                {filter === 'PENDING'
+                  ? 'Você não tem tarefas pendentes!'
+                  : filter === 'COMPLETED'
+                  ? 'Nenhuma tarefa aguardando aprovação.'
+                  : 'Você ainda não tem tarefas atribuídas.'}
               </Text>
             </Card.Content>
           </Card>
@@ -311,20 +291,22 @@ const ChildTasksScreen: React.FC = () => {
                   </View>
 
                   {/* Botão de ação */}
-                  {assignment.status === "PENDING" && (
+                  {assignment.status === 'PENDING' && (
                     <Button
                       mode="contained"
                       onPress={() => handleComplete(assignment.id)}
                       style={styles.completeButton}
                       buttonColor={COLORS.child.primary}
                       icon="check-circle"
+                      loading={completeTask.isPending}
+                      disabled={completeTask.isPending}
                     >
                       Marcar como Concluída
                     </Button>
                   )}
 
                   {/* Motivo da rejeição */}
-                  {assignment.status === "REJECTED" &&
+                  {assignment.status === 'REJECTED' &&
                     assignment.rejectionReason && (
                       <View style={styles.rejectionContainer}>
                         <Text style={styles.rejectionTitle}>
@@ -342,6 +324,8 @@ const ChildTasksScreen: React.FC = () => {
                           style={styles.retryButton}
                           buttonColor={COLORS.child.secondary}
                           icon="refresh"
+                          loading={retryTask.isPending}
+                          disabled={retryTask.isPending}
                         >
                           Refazer Tarefa
                         </Button>
@@ -357,7 +341,7 @@ const ChildTasksScreen: React.FC = () => {
       {/* Snackbars */}
       <Snackbar
         visible={!!error}
-        onDismiss={() => setError("")}
+        onDismiss={() => setError('')}
         duration={3000}
         style={styles.errorSnackbar}
       >
@@ -366,7 +350,7 @@ const ChildTasksScreen: React.FC = () => {
 
       <Snackbar
         visible={!!success}
-        onDismiss={() => setSuccess("")}
+        onDismiss={() => setSuccess('')}
         duration={3000}
         style={styles.successSnackbar}
       >
@@ -392,7 +376,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: COLORS.common.textLight,
     marginTop: 15,
     marginBottom: 8,
@@ -401,7 +385,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   categoryChips: {
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   chip: {
     marginRight: 8,
@@ -411,7 +395,7 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: COLORS.common.white,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   chipTextUnselected: {
     color: COLORS.common.text,
@@ -428,9 +412,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   taskHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
   taskEmoji: {
@@ -438,19 +422,19 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     height: 28,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusText: {
     fontSize: 12,
     color: COLORS.common.white,
-    fontWeight: "600",
+    fontWeight: '600',
     lineHeight: 14,
     marginVertical: 0,
   },
   taskTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.common.text,
     marginBottom: 8,
   },
@@ -461,7 +445,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   rewardContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     backgroundColor: COLORS.child.background,
     borderRadius: 12,
     padding: 15,
@@ -469,18 +453,18 @@ const styles = StyleSheet.create({
   },
   rewardItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   rewardValue: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.child.primary,
     marginBottom: 4,
   },
   rewardLabel: {
     fontSize: 12,
     color: COLORS.common.textLight,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   completeButton: {
     marginTop: 5,
@@ -489,7 +473,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   rejectionContainer: {
-    backgroundColor: "#FFF5F5",
+    backgroundColor: '#FFF5F5',
     borderRadius: 8,
     padding: 12,
     marginTop: 10,
@@ -498,7 +482,7 @@ const styles = StyleSheet.create({
   },
   rejectionTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: COLORS.common.error,
     marginBottom: 6,
   },
@@ -511,7 +495,7 @@ const styles = StyleSheet.create({
   rejectionHint: {
     fontSize: 12,
     color: COLORS.common.textLight,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   emptyCard: {
     margin: 15,
@@ -519,15 +503,15 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: COLORS.common.text,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 10,
   },
   emptyText: {
     fontSize: 14,
     color: COLORS.common.textLight,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
   errorSnackbar: {

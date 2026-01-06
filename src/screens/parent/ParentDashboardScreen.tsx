@@ -1,69 +1,74 @@
 /**
  * Dashboard do Pai
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Text, Card, Button, ActivityIndicator, Chip, Badge } from 'react-native-paper';
+import { Text, Card, ActivityIndicator, Chip, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts';
-import { COLORS } from '../../utils/constants';
-import { userService, taskService, rewardService } from '../../services';
-import { User, TaskAssignment, Reward } from '../../types';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../contexts';
+import { useChildren, useTasks, useRewards, usePendingRedemptions, useNotifications } from '../../hooks';
+import { COLORS } from '../../utils/constants';
+import NotificationsModal from '../../components/NotificationsModal';
 
 const ParentDashboardScreen: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigation = useNavigation();
-  const [loading, setLoading] = useState(true);
+
+  // React Query hooks
+  const {
+    data: children = [],
+    isLoading: loadingChildren,
+    refetch: refetchChildren,
+  } = useChildren();
+  const { data: tasks = [], isLoading: loadingTasks, refetch: refetchTasks } = useTasks();
+  const { data: rewards = [], isLoading: loadingRewards, refetch: refetchRewards } = useRewards();
+  const {
+    data: pendingRedemptions = [],
+    isLoading: loadingRedemptions,
+    refetch: refetchRedemptions,
+  } = usePendingRedemptions();
+
+  const {
+    data: notifications = [],
+    refetch: refetchNotifications,
+  } = useNotifications();
+
+  const loading = loadingChildren || loadingTasks || loadingRewards || loadingRedemptions;
   const [refreshing, setRefreshing] = useState(false);
-  const [children, setChildren] = useState<User[]>([]);
-  const [tasks, setTasks] = useState<TaskAssignment[]>([]);
-  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [childrenData, tasksData, rewardsData] = await Promise.all([
-        userService.getChildren(),
-        taskService.getTasks(),
-        rewardService.getRewards(),
-      ]);
-      setChildren(childrenData);
-      setTasks(tasksData);
-      setRewards(rewardsData);
-    } catch (error) {
-      console.error('Erro ao carregar dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Contar notificações não lidas (tipos relevantes para pai)
+  const unreadCount = useMemo(() => {
+    const parentNotificationTypes = ['TASK_COMPLETED', 'REDEMPTION_REQUESTED'];
+    return notifications.filter(
+      n => parentNotificationTypes.includes(n.type) && !n.isRead
+    ).length;
+  }, [notifications]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
+    await Promise.all([refetchChildren(), refetchTasks(), refetchRewards(), refetchRedemptions(), refetchNotifications()]);
     setRefreshing(false);
   };
 
   // Contar tarefas aguardando aprovação
   const getPendingApprovalCount = (): number => {
-    return tasks.filter(t => t.status === 'COMPLETED').length;
+    return tasks.filter((t) => t.status === 'COMPLETED').length;
   };
 
   // Contar tarefas por status
   const getTasksCountByStatus = (status: string): number => {
-    return tasks.filter(t => t.status === status).length;
+    return tasks.filter((t) => t.status === status).length;
   };
 
   // Obter tarefas por criança
   const getTasksByChild = (childId: string) => {
-    return tasks.filter(t => t.childId === childId);
+    return tasks.filter((t) => t.childId === childId);
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.parent.primary} />
@@ -77,14 +82,28 @@ const ParentDashboardScreen: React.FC = () => {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       {/* Cabeçalho */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Olá, {user?.fullName}! 👋</Text>
-        <Text style={styles.subtitle}>Painel de Controle da Família</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greeting}>Olá, {user?.fullName}! 👋</Text>
+            <Text style={styles.subtitle}>Painel de Controle da Família</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => setShowNotificationsModal(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="bell" size={24} color="#fff" />
+            {unreadCount > 0 && (
+              <Badge size={18} style={styles.notificationBadge}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Alerta de tarefas aguardando aprovação */}
@@ -92,12 +111,13 @@ const ParentDashboardScreen: React.FC = () => {
         <Card style={styles.alertCard}>
           <Card.Content style={styles.alertContent}>
             <View style={styles.alertIconContainer}>
-              <MaterialCommunityIcons name="alert-circle" size={32} color="#fff" />
+              <MaterialCommunityIcons name="clipboard-check" size={32} color="#fff" />
             </View>
             <View style={styles.alertTextContainer}>
-              <Text style={styles.alertTitle}>Ação Necessária!</Text>
+              <Text style={styles.alertTitle}>Tarefas para Revisar</Text>
               <Text style={styles.alertMessage}>
-                {pendingApprovalCount} tarefa{pendingApprovalCount > 1 ? 's' : ''} aguardando aprovação
+                {pendingApprovalCount} tarefa{pendingApprovalCount > 1 ? 's' : ''} aguardando
+                aprovação
               </Text>
             </View>
             <TouchableOpacity
@@ -111,12 +131,41 @@ const ParentDashboardScreen: React.FC = () => {
         </Card>
       )}
 
+      {/* Alerta de resgates pendentes */}
+      {pendingRedemptions.length > 0 && (
+        <Card style={[styles.alertCard, styles.alertCardRedemption]}>
+          <Card.Content style={styles.alertContent}>
+            <View style={styles.alertIconContainer}>
+              <MaterialCommunityIcons name="gift" size={32} color="#fff" />
+            </View>
+            <View style={styles.alertTextContainer}>
+              <Text style={styles.alertTitle}>Resgates Pendentes!</Text>
+              <Text style={styles.alertMessage}>
+                {pendingRedemptions.length} resgate{pendingRedemptions.length > 1 ? 's' : ''} aguardando
+                sua aprovação
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.alertButton, styles.alertButtonRedemption]}
+              onPress={() => navigation.navigate('Rewards' as never)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="arrow-right" size={18} color="#FF9800" />
+            </TouchableOpacity>
+          </Card.Content>
+        </Card>
+      )}
+
       {/* Cards de Estatísticas */}
       <View style={styles.statsGrid}>
         <Card style={styles.statCard}>
           <Card.Content style={styles.statContent}>
             <View style={[styles.iconCircle, { backgroundColor: '#E8EAF6' }]}>
-              <MaterialCommunityIcons name="account-group" size={28} color={COLORS.parent.primary} />
+              <MaterialCommunityIcons
+                name="account-group"
+                size={28}
+                color={COLORS.parent.primary}
+              />
             </View>
             <Text style={styles.statValue}>{children.length}</Text>
             <Text style={styles.statLabel}>Crianças</Text>
@@ -176,7 +225,7 @@ const ParentDashboardScreen: React.FC = () => {
             <Text style={styles.statLabel}>Aprovadas</Text>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#8BC34A' }]}
-              onPress={() => navigation.navigate('Tasks' as never, { scrollToAssigned: true } as never)}
+              onPress={() => navigation.navigate('Tasks' as never)}
               activeOpacity={0.8}
             >
               <MaterialCommunityIcons name="eye" size={16} color="#fff" />
@@ -191,7 +240,11 @@ const ParentDashboardScreen: React.FC = () => {
         <Card.Content>
           <View style={styles.cardHeaderWithButton}>
             <View style={styles.cardHeader}>
-              <MaterialCommunityIcons name="account-multiple" size={24} color={COLORS.parent.primary} />
+              <MaterialCommunityIcons
+                name="account-multiple"
+                size={24}
+                color={COLORS.parent.primary}
+              />
               <Text style={styles.cardTitle}>Resumo por Criança</Text>
             </View>
             {children.length > 0 && (
@@ -209,7 +262,11 @@ const ParentDashboardScreen: React.FC = () => {
           {children.length === 0 ? (
             <View style={styles.emptyState}>
               <View style={[styles.emptyIconCircle]}>
-                <MaterialCommunityIcons name="account-plus" size={48} color={COLORS.parent.primary} />
+                <MaterialCommunityIcons
+                  name="account-plus"
+                  size={48}
+                  color={COLORS.parent.primary}
+                />
               </View>
               <Text style={styles.emptyText}>Nenhuma criança cadastrada</Text>
               <TouchableOpacity
@@ -224,9 +281,9 @@ const ParentDashboardScreen: React.FC = () => {
           ) : (
             children.map((child) => {
               const childTasks = getTasksByChild(child.id);
-              const pending = childTasks.filter(t => t.status === 'PENDING').length;
-              const completed = childTasks.filter(t => t.status === 'COMPLETED').length;
-              const approved = childTasks.filter(t => t.status === 'APPROVED').length;
+              const pending = childTasks.filter((t) => t.status === 'PENDING').length;
+              const completed = childTasks.filter((t) => t.status === 'COMPLETED').length;
+              const approved = childTasks.filter((t) => t.status === 'APPROVED').length;
 
               return (
                 <View key={child.id} style={styles.childItem}>
@@ -236,11 +293,7 @@ const ParentDashboardScreen: React.FC = () => {
                   </View>
                   <View style={styles.childStats}>
                     {completed > 0 && (
-                      <Chip
-                        style={styles.childChip}
-                        textStyle={styles.childChipText}
-                        icon="clock"
-                      >
+                      <Chip style={styles.childChip} textStyle={styles.childChipText} icon="clock">
                         {completed}
                       </Chip>
                     )}
@@ -276,7 +329,7 @@ const ParentDashboardScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={styles.headerActionButton}
-              onPress={() => navigation.navigate('Tasks' as never, { scrollToAssigned: true } as never)}
+              onPress={() => navigation.navigate('Tasks' as never)}
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="eye" size={16} color="#fff" />
@@ -310,16 +363,19 @@ const ParentDashboardScreen: React.FC = () => {
       </Card>
 
       {/* Botão de Logout */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={signOut}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.logoutButton} onPress={signOut} activeOpacity={0.8}>
         <MaterialCommunityIcons name="logout" size={20} color="#fff" />
         <Text style={styles.logoutButtonText}>Sair da Conta</Text>
       </TouchableOpacity>
 
       <View style={styles.bottomSpacer} />
+
+      {/* Modal de Notificações */}
+      <NotificationsModal
+        visible={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        userType="parent"
+      />
     </ScrollView>
   );
 };
@@ -345,6 +401,29 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
     paddingBottom: 25,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
   },
   greeting: {
     fontSize: 26,
@@ -399,6 +478,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  alertCardRedemption: {
+    backgroundColor: '#FF9800',
+    marginTop: 12,
+    shadowColor: '#FF9800',
+  },
+  alertButtonRedemption: {
+    backgroundColor: '#fff',
   },
   statsGrid: {
     flexDirection: 'row',

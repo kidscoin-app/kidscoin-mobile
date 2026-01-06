@@ -1,11 +1,31 @@
 /**
  * Tela para criar e gerenciar recompensas (Parent)
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Divider, List, Portal, Snackbar, Switch, Text, TextInput } from 'react-native-paper';
-import { getErrorMessage, rewardService } from '../../services';
-import { Redemption, Reward } from '../../types';
+import {
+  Button,
+  Card,
+  Dialog,
+  Divider,
+  List,
+  Portal,
+  Snackbar,
+  Switch,
+  Text,
+  TextInput,
+} from 'react-native-paper';
+import {
+  useRewards,
+  usePendingRedemptions,
+  useCreateReward,
+  useToggleReward,
+  useApproveRedemption,
+  useRejectRedemption,
+} from '../../hooks';
+import { getErrorMessage } from '../../services';
+import { Redemption } from '../../types';
 import { COLORS } from '../../utils/constants';
 
 const CreateRewardScreen: React.FC = () => {
@@ -14,12 +34,7 @@ const CreateRewardScreen: React.FC = () => {
   const [description, setDescription] = useState('');
   const [coinCost, setCoinCost] = useState('');
 
-  // Estados
-  const [loading, setLoading] = useState(false);
-  const [loadingRewards, setLoadingRewards] = useState(false);
-  const [loadingRedemptions, setLoadingRedemptions] = useState(false);
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  // UI State
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -28,25 +43,50 @@ const CreateRewardScreen: React.FC = () => {
   const [rejectingRedemption, setRejectingRedemption] = useState<Redemption | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  useEffect(() => {
-    loadRewards();
-    loadRedemptions();
-  }, []);
+  // React Query hooks
+  const { data: rewards = [], isLoading: loadingRewards } = useRewards();
+  const { data: redemptions = [], isLoading: loadingRedemptions } = usePendingRedemptions();
 
-  /**
-   * Carregar recompensas
-   */
-  const loadRewards = async () => {
-    setLoadingRewards(true);
-    try {
-      const data = await rewardService.getRewards();
-      setRewards(data);
-    } catch (err: any) {
-      console.error('Erro ao carregar recompensas:', err);
-    } finally {
-      setLoadingRewards(false);
-    }
-  };
+  const createReward = useCreateReward({
+    onSuccess: () => {
+      setSuccess('Recompensa criada com sucesso!');
+      setName('');
+      setDescription('');
+      setCoinCost('');
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  const toggleReward = useToggleReward({
+    onSuccess: (reward) => {
+      setSuccess(reward.isActive ? `${reward.name} foi ativada` : `${reward.name} foi desativada`);
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  const approveRedemption = useApproveRedemption({
+    onSuccess: () => {
+      setSuccess('Resgate aprovado! Moedas debitadas.');
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  const rejectRedemption = useRejectRedemption({
+    onSuccess: () => {
+      setSuccess('Resgate rejeitado.');
+      setRejectDialogVisible(false);
+      setRejectingRedemption(null);
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
 
   /**
    * Validar formulário
@@ -69,7 +109,7 @@ const CreateRewardScreen: React.FC = () => {
   /**
    * Criar recompensa
    */
-  const handleCreateReward = async () => {
+  const handleCreateReward = () => {
     setError('');
     setSuccess('');
 
@@ -77,70 +117,11 @@ const CreateRewardScreen: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await rewardService.createReward({
-        name: name.trim(),
-        description: description.trim() || undefined,
-        coinCost: parseInt(coinCost),
-      });
-
-      setSuccess('Recompensa criada com sucesso!');
-
-      // Limpar formulário
-      setName('');
-      setDescription('');
-      setCoinCost('');
-
-      // Recarregar lista
-      await loadRewards();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Ativar/Desativar recompensa
-   */
-  const handleToggleReward = async (reward: Reward) => {
-    try {
-      await rewardService.toggleReward(reward.id);
-      setSuccess(reward.isActive ? `${reward.name} foi desativada` : `${reward.name} foi ativada`);
-      await loadRewards();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
-  };
-
-  /**
-   * Carregar resgates pendentes
-   */
-  const loadRedemptions = async () => {
-    setLoadingRedemptions(true);
-    try {
-      const data = await rewardService.getRedemptions('PENDING');
-      setRedemptions(data);
-    } catch (err: any) {
-      console.error('Erro ao carregar resgates:', err);
-    } finally {
-      setLoadingRedemptions(false);
-    }
-  };
-
-  /**
-   * Aprovar resgate
-   */
-  const handleApproveRedemption = async (redemptionId: string) => {
-    try {
-      await rewardService.approveRedemption(redemptionId);
-      setSuccess('Resgate aprovado! Moedas debitadas.');
-      await loadRedemptions();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
+    createReward.mutate({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      coinCost: parseInt(coinCost),
+    });
   };
 
   /**
@@ -155,22 +136,15 @@ const CreateRewardScreen: React.FC = () => {
   /**
    * Rejeitar resgate
    */
-  const handleRejectRedemption = async () => {
+  const handleRejectRedemption = () => {
     if (!rejectingRedemption || !rejectionReason.trim()) {
       return;
     }
 
-    try {
-      await rewardService.rejectRedemption(rejectingRedemption.id, {
-        rejectionReason: rejectionReason.trim(),
-      });
-      setSuccess('Resgate rejeitado.');
-      setRejectDialogVisible(false);
-      setRejectingRedemption(null);
-      await loadRedemptions();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    }
+    rejectRedemption.mutate({
+      redemptionId: rejectingRedemption.id,
+      data: { rejectionReason: rejectionReason.trim() },
+    });
   };
 
   return (
@@ -181,7 +155,9 @@ const CreateRewardScreen: React.FC = () => {
           <Card style={styles.card}>
             <Card.Content>
               <Text style={styles.cardTitle}>Criar Nova Recompensa</Text>
-              <Text style={styles.cardSubtitle}>Crie recompensas que as crianças podem resgatar com suas moedas</Text>
+              <Text style={styles.cardSubtitle}>
+                Crie recompensas que as crianças podem resgatar com suas moedas
+              </Text>
 
               <TextInput
                 label="Nome da Recompensa"
@@ -218,8 +194,8 @@ const CreateRewardScreen: React.FC = () => {
               <Button
                 mode="contained"
                 onPress={handleCreateReward}
-                loading={loading}
-                disabled={loading}
+                loading={createReward.isPending}
+                disabled={createReward.isPending}
                 style={styles.createButton}
                 buttonColor={COLORS.parent.primary}
                 icon="plus"
@@ -243,28 +219,35 @@ const CreateRewardScreen: React.FC = () => {
                   {rewards.map((reward, index) => (
                     <React.Fragment key={reward.id}>
                       <View style={styles.rewardItem}>
-                        {/* Header: Ícone + Título e Descrição + Indicador de Status */}
                         <View style={styles.rewardHeader}>
                           <View style={styles.rewardIconLarge}>
-                            <List.Icon icon="gift" color={COLORS.common.white} size={32} />
+                            <List.Icon icon="gift" color={COLORS.common.white} />
                           </View>
 
                           <View style={styles.rewardContent}>
-                            <Text style={[styles.rewardName, !reward.isActive && styles.rewardNameInactive]}>
+                            <Text
+                              style={[
+                                styles.rewardName,
+                                !reward.isActive && styles.rewardNameInactive,
+                              ]}
+                            >
                               {reward.name}
                             </Text>
-                            {reward.description && <Text style={styles.rewardDescription}>{reward.description}</Text>}
+                            {reward.description && (
+                              <Text style={styles.rewardDescription}>{reward.description}</Text>
+                            )}
                           </View>
 
                           <View
                             style={[
                               styles.statusIndicator,
-                              reward.isActive ? styles.statusIndicatorActive : styles.statusIndicatorInactive,
+                              reward.isActive
+                                ? styles.statusIndicatorActive
+                                : styles.statusIndicatorInactive,
                             ]}
                           />
                         </View>
 
-                        {/* Bottom Row: Custo + Switch */}
                         <View style={styles.rewardBottomRow}>
                           <View style={styles.costContainer}>
                             <Text style={styles.costIcon}>💰</Text>
@@ -274,7 +257,7 @@ const CreateRewardScreen: React.FC = () => {
                           <View style={styles.switchContainer}>
                             <Switch
                               value={reward.isActive}
-                              onValueChange={() => handleToggleReward(reward)}
+                              onValueChange={() => toggleReward.mutate(reward.id)}
                               color={COLORS.child.success}
                             />
                           </View>
@@ -304,20 +287,25 @@ const CreateRewardScreen: React.FC = () => {
                       <View style={styles.redemptionItem}>
                         <View style={styles.redemptionHeader}>
                           <Text style={styles.redemptionReward}>🎁 {redemption.reward.name}</Text>
-                          <Text style={styles.redemptionCost}>💰 {redemption.reward.coinCost} moedas</Text>
+                          <Text style={styles.redemptionCost}>
+                            💰 {redemption.reward.coinCost} moedas
+                          </Text>
                         </View>
                         <Text style={styles.redemptionChild}>👤 {redemption.childName}</Text>
                         <Text style={styles.redemptionDate}>
-                          📅 Solicitado em {new Date(redemption.requestedAt).toLocaleDateString('pt-BR')}
+                          📅 Solicitado em{' '}
+                          {new Date(redemption.requestedAt).toLocaleDateString('pt-BR')}
                         </Text>
 
                         <View style={styles.redemptionActions}>
                           <Button
                             mode="contained"
-                            onPress={() => handleApproveRedemption(redemption.id)}
+                            onPress={() => approveRedemption.mutate(redemption.id)}
                             style={styles.approveButton}
                             buttonColor={COLORS.child.success}
                             icon="check"
+                            loading={approveRedemption.isPending}
+                            disabled={approveRedemption.isPending}
                           >
                             Aprovar
                           </Button>
@@ -347,7 +335,9 @@ const CreateRewardScreen: React.FC = () => {
         <Dialog visible={rejectDialogVisible} onDismiss={() => setRejectDialogVisible(false)}>
           <Dialog.Title>Rejeitar Resgate</Dialog.Title>
           <Dialog.Content>
-            <Text style={styles.dialogText}>Informe o motivo da rejeição para {rejectingRedemption?.childName}:</Text>
+            <Text style={styles.dialogText}>
+              Informe o motivo da rejeição para {rejectingRedemption?.childName}:
+            </Text>
             <TextInput
               value={rejectionReason}
               onChangeText={setRejectionReason}
@@ -360,19 +350,34 @@ const CreateRewardScreen: React.FC = () => {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setRejectDialogVisible(false)}>Cancelar</Button>
-            <Button onPress={handleRejectRedemption} disabled={!rejectionReason.trim()} textColor={COLORS.common.error}>
+            <Button
+              onPress={handleRejectRedemption}
+              disabled={!rejectionReason.trim() || rejectRedemption.isPending}
+              loading={rejectRedemption.isPending}
+              textColor={COLORS.common.error}
+            >
               Rejeitar
             </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
 
-      {/* Snackbars - Fora do ScrollView para ficarem fixos */}
-      <Snackbar visible={!!error} onDismiss={() => setError('')} duration={3000} style={styles.errorSnackbar}>
+      {/* Snackbars */}
+      <Snackbar
+        visible={!!error}
+        onDismiss={() => setError('')}
+        duration={3000}
+        style={styles.errorSnackbar}
+      >
         {error}
       </Snackbar>
 
-      <Snackbar visible={!!success} onDismiss={() => setSuccess('')} duration={3000} style={styles.successSnackbar}>
+      <Snackbar
+        visible={!!success}
+        onDismiss={() => setSuccess('')}
+        duration={3000}
+        style={styles.successSnackbar}
+      >
         {success}
       </Snackbar>
     </View>

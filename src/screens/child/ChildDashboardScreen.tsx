@@ -1,50 +1,83 @@
 /**
  * Dashboard da Criança
+ * Migrado para React Query
  */
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Text, Card, ProgressBar, ActivityIndicator, Button } from 'react-native-paper';
+import { Text, Card, ProgressBar, ActivityIndicator, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
-import { gamificationService, walletService, taskService } from '../../services';
-import { Gamification, Wallet, TaskAssignment } from '../../types';
+import { useGamification, useWallet, useTasks, useNotifications } from '../../hooks';
+import NotificationsModal from '../../components/NotificationsModal';
 
 const ChildDashboardScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [gamification, setGamification] = useState<Gamification | null>(null);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [pendingTasks, setPendingTasks] = useState<TaskAssignment[]>([]);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  // React Query hooks
+  const {
+    data: gamification,
+    isLoading: loadingGamification,
+    refetch: refetchGamification,
+  } = useGamification();
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [gamificationData, walletData, tasksData] = await Promise.all([
-        gamificationService.getGamification(),
-        walletService.getWallet(),
-        taskService.getTasks(),
-      ]);
-      setGamification(gamificationData);
-      setWallet(walletData);
-      setPendingTasks(tasksData.filter(t => t.status === 'PENDING'));
-    } catch (error) {
-      console.error('Erro ao carregar dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: wallet,
+    isLoading: loadingWallet,
+    refetch: refetchWallet,
+  } = useWallet();
+
+  const {
+    data: tasks = [],
+    isLoading: loadingTasks,
+    refetch: refetchTasks,
+  } = useTasks();
+
+  const {
+    data: notifications = [],
+    refetch: refetchNotifications,
+  } = useNotifications();
+
+  // Estado do modal de notificações
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+
+  // Contar notificações não lidas (tipos relevantes para criança)
+  const unreadCount = useMemo(() => {
+    const childNotificationTypes = [
+      'TASK_ASSIGNED',
+      'TASK_APPROVED',
+      'TASK_REJECTED',
+      'REDEMPTION_APPROVED',
+      'REDEMPTION_REJECTED',
+      'LEVEL_UP',
+      'BADGE_UNLOCKED',
+    ];
+    return notifications.filter(
+      n => childNotificationTypes.includes(n.type) && !n.isRead
+    ).length;
+  }, [notifications]);
+
+  // Tarefas pendentes filtradas
+  const pendingTasks = useMemo(() => {
+    return tasks.filter(t => t.status === 'PENDING');
+  }, [tasks]);
+
+  // Loading state
+  const loading = loadingGamification || loadingWallet || loadingTasks;
+
+  // Refresh handler
+  const [refreshing, setRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
+    await Promise.all([
+      refetchGamification(),
+      refetchWallet(),
+      refetchTasks(),
+      refetchNotifications(),
+    ]);
     setRefreshing(false);
   };
 
@@ -106,10 +139,26 @@ const ChildDashboardScreen: React.FC = () => {
     >
       {/* Cabeçalho com saudação */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {getGreeting()}, {user?.fullName?.split(' ')[0] || 'Campeão'}! 👋
-        </Text>
-        <Text style={styles.motivational}>{getMotivationalMessage()}</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greeting}>
+              {getGreeting()}, {user?.fullName?.split(' ')[0] || 'Campeão'}! 👋
+            </Text>
+            <Text style={styles.motivational}>{getMotivationalMessage()}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => setShowNotificationsModal(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="bell" size={24} color="#fff" />
+            {unreadCount > 0 && (
+              <Badge size={18} style={styles.notificationBadge}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Cards principais - Moedas e Nível */}
@@ -247,6 +296,13 @@ const ChildDashboardScreen: React.FC = () => {
       </View>
 
       <View style={styles.bottomSpacer} />
+
+      {/* Modal de Notificações */}
+      <NotificationsModal
+        visible={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        userType="child"
+      />
     </ScrollView>
   );
 };
@@ -274,6 +330,29 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
   },
   greeting: {
     fontSize: 26,

@@ -1,3 +1,7 @@
+/**
+ * Tela de Poupança (Child)
+ * Migrado para React Query
+ */
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
@@ -15,17 +19,26 @@ import {
   Text,
   TextInput,
 } from 'react-native-paper';
-import { walletService } from '../../services';
-import { Savings, Wallet } from '../../types';
 import { COLORS } from '../../utils/constants';
+import { useSavings, useWallet, useDepositSavings, useWithdrawSavings } from '../../hooks';
 
 const SAVINGS_GOAL_KEY = '@kidscoin:savingsGoal';
 
 const SavingsScreen: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [savings, setSavings] = useState<Savings | null>(null);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  // React Query hooks
+  const {
+    data: savings,
+    isLoading: loadingSavings,
+    refetch: refetchSavings,
+  } = useSavings();
+
+  const {
+    data: wallet,
+    isLoading: loadingWallet,
+    refetch: refetchWallet,
+  } = useWallet();
+
+  const loading = loadingSavings || loadingWallet;
 
   // Modais
   const [depositModalVisible, setDepositModalVisible] = useState(false);
@@ -43,8 +56,37 @@ const SavingsScreen: React.FC = () => {
   // Meta de poupança (editável)
   const [savingsGoal, setSavingsGoal] = useState(500);
 
+  // Refresh state
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Mutations
+  const depositSavings = useDepositSavings({
+    onSuccess: (_, variables) => {
+      setDepositModalVisible(false);
+      setDepositAmount('');
+      showSnackbar(`${variables.amount} moedas depositadas na poupança!`, 'success');
+    },
+    onError: (error: any) => {
+      showSnackbar(error.response?.data?.message || 'Erro ao depositar', 'error');
+    },
+  });
+
+  const withdrawSavings = useWithdrawSavings({
+    onSuccess: (_, variables) => {
+      const bonus = Math.round(variables.amount * (getTimeBonus() / 100));
+      setWithdrawModalVisible(false);
+      setWithdrawAmount('');
+      showSnackbar(
+        bonus > 0 ? `Sacado ${variables.amount} moedas + ${bonus} de bônus!` : `${variables.amount} moedas sacadas!`,
+        'success'
+      );
+    },
+    onError: (error: any) => {
+      showSnackbar(error.response?.data?.message || 'Erro ao sacar', 'error');
+    },
+  });
+
   useEffect(() => {
-    loadData();
     loadSavingsGoal();
   }, []);
 
@@ -59,23 +101,9 @@ const SavingsScreen: React.FC = () => {
     }
   };
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [savingsData, walletData] = await Promise.all([walletService.getSavings(), walletService.getWallet()]);
-      setSavings(savingsData);
-      setWallet(walletData);
-    } catch (error) {
-      console.error('Erro ao carregar dados da poupança:', error);
-      showSnackbar('Erro ao carregar dados da poupança', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([refetchSavings(), refetchWallet()]);
     setRefreshing(false);
   };
 
@@ -85,7 +113,7 @@ const SavingsScreen: React.FC = () => {
 
   // Atualizar meta de poupança
   const handleUpdateGoal = async () => {
-    Keyboard.dismiss(); // Fecha o teclado
+    Keyboard.dismiss();
 
     const goalValue = parseInt(newGoal);
     const currentBalance = savings?.balance || 0;
@@ -149,7 +177,7 @@ const SavingsScreen: React.FC = () => {
   };
 
   // Depositar
-  const handleDeposit = async () => {
+  const handleDeposit = () => {
     const amount = parseInt(depositAmount);
     if (!amount || amount <= 0) {
       showSnackbar('Digite um valor válido', 'error');
@@ -160,22 +188,11 @@ const SavingsScreen: React.FC = () => {
       return;
     }
 
-    try {
-      const updatedSavings = await walletService.depositSavings(amount);
-      setSavings(updatedSavings);
-      // Atualiza wallet manualmente
-      setWallet({ ...wallet, balance: wallet.balance - amount });
-      setDepositModalVisible(false);
-      setDepositAmount('');
-      showSnackbar(`${amount} moedas depositadas na poupança!`, 'success');
-    } catch (error: any) {
-      console.error('Erro ao depositar:', error);
-      showSnackbar(error.response?.data?.message || 'Erro ao depositar', 'error');
-    }
+    depositSavings.mutate({ amount });
   };
 
   // Sacar
-  const handleWithdraw = async () => {
+  const handleWithdraw = () => {
     const amount = parseInt(withdrawAmount);
     if (!amount || amount <= 0) {
       showSnackbar('Digite um valor válido', 'error');
@@ -186,23 +203,7 @@ const SavingsScreen: React.FC = () => {
       return;
     }
 
-    try {
-      const updatedSavings = await walletService.withdrawSavings(amount);
-      setSavings(updatedSavings);
-      // Calcula valor com bônus
-      const bonus = Math.round(amount * (getTimeBonus() / 100));
-      const totalReceived = amount + bonus;
-      // Atualiza wallet manualmente
-      if (wallet) {
-        setWallet({ ...wallet, balance: wallet.balance + totalReceived });
-      }
-      setWithdrawModalVisible(false);
-      setWithdrawAmount('');
-      showSnackbar(bonus > 0 ? `Sacado ${amount} moedas + ${bonus} de bônus!` : `${amount} moedas sacadas!`, 'success');
-    } catch (error: any) {
-      console.error('Erro ao sacar:', error);
-      showSnackbar(error.response?.data?.message || 'Erro ao sacar', 'error');
-    }
+    withdrawSavings.mutate({ amount });
   };
 
   if (loading) {
@@ -403,7 +404,14 @@ const SavingsScreen: React.FC = () => {
             >
               Cancelar
             </Button>
-            <Button mode="contained" onPress={handleDeposit} style={styles.modalButton} buttonColor="#4CAF50">
+            <Button
+              mode="contained"
+              onPress={handleDeposit}
+              style={styles.modalButton}
+              buttonColor="#4CAF50"
+              loading={depositSavings.isPending}
+              disabled={depositSavings.isPending}
+            >
               Depositar
             </Button>
           </View>
@@ -453,7 +461,14 @@ const SavingsScreen: React.FC = () => {
             >
               Cancelar
             </Button>
-            <Button mode="contained" onPress={handleWithdraw} style={styles.modalButton} buttonColor="#FF9800">
+            <Button
+              mode="contained"
+              onPress={handleWithdraw}
+              style={styles.modalButton}
+              buttonColor="#FF9800"
+              loading={withdrawSavings.isPending}
+              disabled={withdrawSavings.isPending}
+            >
               Sacar
             </Button>
           </View>
