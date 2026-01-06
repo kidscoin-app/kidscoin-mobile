@@ -3,8 +3,8 @@
  * Migrado para React Query
  */
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, ActivityIndicator, Badge } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ScrollView as HorizontalScroll } from 'react-native';
+import { Text, ActivityIndicator, Badge, Chip, Portal, Dialog, TextInput, Button, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts';
@@ -15,7 +15,7 @@ import {
   usePendingRedemptions,
   useNotifications,
   useApproveTask,
-  useRejectTask,
+  useRejectTask, 
   useApproveRedemption,
   useRejectRedemption,
 } from '../../hooks';
@@ -68,6 +68,15 @@ const ParentDashboardScreen: React.FC = () => {
   const loading = loadingChildren || loadingTasks || loadingRewards || loadingRedemptions;
   const [refreshing, setRefreshing] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [actionFilter, setActionFilter] = useState<'all' | 'task' | 'redemption'>('all');
+
+  // Estado do dialog de rejeicao
+  const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
+  const [rejectingAction, setRejectingAction] = useState<PendingAction | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Estado do snackbar
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // Contar notificacoes nao lidas (tipos relevantes para pai)
   const unreadCount = useMemo(() => {
@@ -108,6 +117,16 @@ const ParentDashboardScreen: React.FC = () => {
     return [...taskActions, ...redemptionActions];
   }, [tasks, pendingRedemptions]);
 
+  // Filtrar acoes baseado no filtro selecionado
+  const filteredActions = useMemo(() => {
+    if (actionFilter === 'all') return pendingActions;
+    return pendingActions.filter(a => a.type === actionFilter);
+  }, [pendingActions, actionFilter]);
+
+  // Contadores por tipo
+  const taskActionsCount = pendingActions.filter(a => a.type === 'task').length;
+  const redemptionActionsCount = pendingActions.filter(a => a.type === 'redemption').length;
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetchChildren(), refetchTasks(), refetchRewards(), refetchRedemptions(), refetchNotifications()]);
@@ -116,32 +135,60 @@ const ParentDashboardScreen: React.FC = () => {
 
   const handleApprove = (action: PendingAction) => {
     if (action.type === 'task') {
-      approveTask(action.id);
+      approveTask(action.id, {
+        onSuccess: () => {
+          setSnackbarMessage('Tarefa aprovada com sucesso!');
+        },
+      });
     } else {
-      approveRedemption(action.id);
+      approveRedemption(action.id, {
+        onSuccess: () => {
+          setSnackbarMessage('Resgate aprovado com sucesso!');
+        },
+      });
     }
   };
 
   const handleReject = (action: PendingAction) => {
-    Alert.prompt(
-      'Rejeitar',
-      'Informe o motivo da rejeicao (opcional):',
-      [
-        { text: 'Cancelar', style: 'cancel' },
+    setRejectingAction(action);
+    setRejectionReason('');
+    setRejectDialogVisible(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectingAction) return;
+
+    if (rejectingAction.type === 'task') {
+      rejectTask(
+        { assignmentId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
         {
-          text: 'Rejeitar',
-          style: 'destructive',
-          onPress: (reason?: string) => {
-            if (action.type === 'task') {
-              rejectTask({ assignmentId: action.id, data: { rejectionReason: reason || '' } });
-            } else {
-              rejectRedemption({ redemptionId: action.id, data: { rejectionReason: reason || '' } });
-            }
+          onSuccess: () => {
+            setRejectDialogVisible(false);
+            setRejectingAction(null);
+            setRejectionReason('');
+            setSnackbarMessage('Tarefa rejeitada com sucesso!');
           },
-        },
-      ],
-      'plain-text'
-    );
+        }
+      );
+    } else {
+      rejectRedemption(
+        { redemptionId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
+        {
+          onSuccess: () => {
+            setRejectDialogVisible(false);
+            setRejectingAction(null);
+            setRejectionReason('');
+            setSnackbarMessage('Resgate rejeitado com sucesso!');
+          },
+        }
+      );
+    }
+  };
+
+  const handleCloseRejectDialog = () => {
+    setRejectDialogVisible(false);
+    setRejectingAction(null);
+    setRejectionReason('');
   };
 
   if (loading && !refreshing) {
@@ -227,17 +274,45 @@ const ParentDashboardScreen: React.FC = () => {
               </Badge>
             )}
           </View>
-          {pendingActions.length > 0 && (
-            <TouchableOpacity
-              style={styles.viewAllButton}
-              onPress={() => navigation.navigate('Tasks' as never)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.viewAllText}>Ver todas</Text>
-              <MaterialCommunityIcons name="chevron-right" size={18} color={COLORS.parent.primary} />
-            </TouchableOpacity>
-          )}
         </View>
+
+        {/* Filtros */}
+        {pendingActions.length > 0 && (
+          <HorizontalScroll
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScrollView}
+            contentContainerStyle={styles.filterContainer}
+          >
+            <Chip
+              selected={actionFilter === 'all'}
+              onPress={() => setActionFilter('all')}
+              style={[styles.filterChip, actionFilter === 'all' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'all' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Todas ({pendingActions.length})
+            </Chip>
+            <Chip
+              selected={actionFilter === 'task'}
+              onPress={() => setActionFilter('task')}
+              style={[styles.filterChip, actionFilter === 'task' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'task' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Tarefas ({taskActionsCount})
+            </Chip>
+            <Chip
+              selected={actionFilter === 'redemption'}
+              onPress={() => setActionFilter('redemption')}
+              style={[styles.filterChip, actionFilter === 'redemption' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'redemption' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Recompensas ({redemptionActionsCount})
+            </Chip>
+          </HorizontalScroll>
+        )}
 
         {pendingActions.length === 0 ? (
           <View style={styles.emptyActionsContainer}>
@@ -249,13 +324,43 @@ const ParentDashboardScreen: React.FC = () => {
               Nao ha acoes pendentes no momento.
             </Text>
           </View>
+        ) : filteredActions.length === 0 ? (
+          <View style={styles.emptyActionsContainer}>
+            <View style={styles.emptyActionsIconCircle}>
+              <MaterialCommunityIcons
+                name={actionFilter === 'task' ? 'clipboard-text-outline' : 'gift-outline'}
+                size={48}
+                color={COLORS.common.textLight}
+              />
+            </View>
+            <Text style={styles.emptyActionsTitle}>Nenhuma acao</Text>
+            <Text style={styles.emptyActionsText}>
+              Nao ha {actionFilter === 'task' ? 'tarefas' : 'recompensas'} pendentes.
+            </Text>
+          </View>
         ) : (
           <View style={styles.actionsContainer}>
-            {pendingActions.slice(0, 3).map((action) => (
+            {filteredActions.map((action) => (
               <View key={`${action.type}-${action.id}`} style={styles.actionCard}>
-                <View style={styles.actionLeftBorder} />
-                <View style={styles.actionIconContainer}>
-                  <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.parent.primary} />
+                {/* Badge no canto superior direito */}
+                <View style={[
+                  styles.actionTypeBadge,
+                  { backgroundColor: action.type === 'task' ? '#4CAF50' : '#FF9800' }
+                ]}>
+                  <Text style={styles.actionTypeBadgeText}>
+                    {action.type === 'task' ? 'Tarefa' : 'Recompensa'}
+                  </Text>
+                </View>
+
+                <View style={[
+                  styles.actionIconContainer,
+                  { backgroundColor: action.type === 'task' ? '#E8F5E9' : '#FFF3E0' }
+                ]}>
+                  <MaterialCommunityIcons
+                    name={action.type === 'task' ? 'clipboard-check-outline' : 'gift-outline'}
+                    size={24}
+                    color={action.type === 'task' ? '#4CAF50' : '#FF9800'}
+                  />
                 </View>
                 <View style={styles.actionContent}>
                   <Text style={styles.actionTitle} numberOfLines={1}>{action.title}</Text>
@@ -314,6 +419,55 @@ const ParentDashboardScreen: React.FC = () => {
         onClose={() => setShowNotificationsModal(false)}
         userType="parent"
       />
+
+      {/* Dialog de Rejeicao */}
+      <Portal>
+        <Dialog visible={rejectDialogVisible} onDismiss={handleCloseRejectDialog}>
+          <Dialog.Title>
+            {rejectingAction?.type === 'task' ? 'Rejeitar Tarefa' : 'Rejeitar Resgate'}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Informe o motivo da rejeicao para {rejectingAction?.childName}:
+            </Text>
+            <TextInput
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              mode="outlined"
+              multiline
+              numberOfLines={3}
+              placeholder={rejectingAction?.type === 'task' 
+                ? "Ex: Tarefa nao foi completada corretamente" 
+                : "Ex: Não pode jogar videogame hoje"
+              }
+              style={styles.dialogInput}
+              outlineColor={COLORS.common.border}
+              activeOutlineColor={COLORS.parent.primary}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleCloseRejectDialog}>Cancelar</Button>
+            <Button
+              onPress={handleConfirmReject}
+              disabled={!rejectionReason.trim() || isProcessing}
+              loading={isProcessing}
+              textColor={COLORS.common.error}
+            >
+              Rejeitar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Snackbar de feedback */}
+      <Snackbar
+        visible={!!snackbarMessage}
+        onDismiss={() => setSnackbarMessage('')}
+        duration={3000}
+        style={styles.snackbar}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </ScrollView>
   );
 };
@@ -479,8 +633,32 @@ const styles = StyleSheet.create({
     color: COLORS.common.textLight,
     textAlign: 'center',
   },
+  filterScrollView: {
+    marginBottom: 16,
+    marginHorizontal: -16,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    height: 36,
+  },
+  filterChipSelected: {
+    backgroundColor: COLORS.parent.primary,
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: COLORS.common.textLight,
+  },
+  filterChipTextSelected: {
+    color: '#fff',
+  },
   actionsContainer: {
-    gap: 12,
+    gap: 16,
   },
   actionCard: {
     flexDirection: 'row',
@@ -488,27 +666,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
-    paddingLeft: 0,
+    paddingTop: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
-    overflow: 'hidden',
-  },
-  actionLeftBorder: {
-    width: 4,
-    height: '100%',
-    backgroundColor: '#90CAF9',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    marginRight: 12,
+    position: 'relative',
+    overflow: 'visible',
   },
   actionIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E3F2FD',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -517,10 +687,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: COLORS.common.text,
     marginBottom: 4,
+  },
+  actionTypeBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  actionTypeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
   },
   actionChildRow: {
     flexDirection: 'row',
@@ -588,6 +772,17 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+  dialogText: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    marginBottom: 16,
+  },
+  dialogInput: {
+    backgroundColor: COLORS.common.white,
+  },
+  snackbar: {
+    backgroundColor: COLORS.child.success,
   },
 });
 
