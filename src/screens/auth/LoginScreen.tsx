@@ -25,109 +25,128 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-    >
-      <View style={styles.header}>
-        <Image
-          source={require('../../../assets/logo-porco.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Bem-vindo de volta!</Text>
-        <Text style={styles.subtitle}>Quem esta usando o app?</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Image
+            source={require('../../../assets/logo-porco.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.headerSubtitle}>Educacao Financeira Infantil</Text>
+        </View>
 
-      <View style={styles.cardsContainer}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ParentLogin')}
-          activeOpacity={0.8}
-        >
-          <Surface style={styles.card} elevation={3}>
-            <View style={[styles.iconContainer, { backgroundColor: COLORS.parent.primary + '20' }]}>
-              <MaterialCommunityIcons name="account-tie" size={40} color={COLORS.parent.primary} />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Sou Pai/Mae</Text>
-              <Text style={styles.cardDescription}>
-                Gerenciar tarefas, criancas e recompensas
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
-          </Surface>
-        </TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Bem-vindo de volta!</Text>
+          <Text style={styles.cardSubtitle}>Quem esta usando o app?</Text>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ChildLogin')}
-          activeOpacity={0.8}
-        >
-          <Surface style={styles.card} elevation={3}>
-            <View style={[styles.iconContainer, { backgroundColor: COLORS.child.primary + '20' }]}>
-              <MaterialCommunityIcons name="human-child" size={40} color={COLORS.child.primary} />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Sou Crianca</Text>
-              <Text style={styles.cardDescription}>
-                Ver minhas tarefas e recompensas
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
-          </Surface>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ParentLogin')}
+            activeOpacity={0.8}
+          >
+            <Surface style={styles.optionCard} elevation={2}>
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.parent.primary + '20' }]}>
+                <MaterialCommunityIcons name="account-tie" size={32} color={COLORS.parent.primary} />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>Sou Pai/Mae</Text>
+                <Text style={styles.optionDescription}>
+                  Gerenciar tarefas, criancas e recompensas
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
+            </Surface>
+          </TouchableOpacity>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Nao tem conta? </Text>
-        <Text
-          style={styles.footerLink}
-          onPress={() => navigation.navigate('Register')}
-        >
-          Cadastre-se
-        </Text>
-      </View>
-    </ScrollView>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ChildLogin')}
+            activeOpacity={0.8}
+          >
+            <Surface style={styles.optionCard} elevation={2}>
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.child.primary + '20' }]}>
+                <MaterialCommunityIcons name="human-child" size={32} color={COLORS.child.primary} />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>Sou Crianca</Text>
+                <Text style={styles.optionDescription}>
+                  Ver minhas tarefas e recompensas
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
+            </Surface>
+          </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Nao tem conta? </Text>
+            <Text
+              style={styles.footerLink}
+              onPress={() => navigation.navigate('Register')}
+            >
+              Cadastre-se
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.common.white,
+    backgroundColor: COLORS.child.primary,
   },
   scrollContent: {
     flexGrow: 1,
   },
   header: {
     backgroundColor: COLORS.child.primary,
-    padding: 20,
-    paddingTop: 80,
-    paddingBottom: 60,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: 60,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   logoImage: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+    width: 120,
+    height: 120,
+    marginBottom: 10,
   },
-  title: {
-    fontSize: 28,
+  logoText: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: COLORS.common.white,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
+  headerSubtitle: {
+    fontSize: 14,
     color: COLORS.common.white,
     opacity: 0.9,
   },
-  cardsContainer: {
-    padding: 20,
-    marginTop: -30,
-  },
   card: {
+    flex: 1,
+    backgroundColor: COLORS.common.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.common.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
@@ -136,39 +155,39 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardContent: {
+  optionContent: {
     flex: 1,
     marginLeft: 16,
   },
-  cardTitle: {
-    fontSize: 18,
+  optionTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.common.text,
     marginBottom: 4,
   },
-  cardDescription: {
-    fontSize: 14,
+  optionDescription: {
+    fontSize: 13,
     color: COLORS.common.textLight,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingVertical: 20,
+    marginTop: 20,
   },
   footerText: {
     color: COLORS.common.textLight,
-    fontSize: 16,
+    fontSize: 15,
   },
   footerLink: {
     color: COLORS.parent.primary,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 15,
   },
 });
 

@@ -1,7 +1,7 @@
 /**
- * Tela de Login da Criança
+ * Tela de Login da Crianca
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,15 +9,17 @@ import {
   Platform,
   ScrollView,
   Image,
+  TextInput as RNTextInput,
+  TouchableOpacity,
 } from 'react-native';
 import {
   TextInput,
   Button,
   Text,
-  Surface,
   Snackbar,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
 
@@ -26,18 +28,40 @@ const ChildLoginScreen: React.FC = () => {
   const { signIn } = useAuth();
 
   const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = async () => {
-    if (!username || !pin) {
-      setError('Preencha todos os campos');
-      return;
-    }
+  const pinRefs = [
+    useRef<RNTextInput>(null),
+    useRef<RNTextInput>(null),
+    useRef<RNTextInput>(null),
+    useRef<RNTextInput>(null),
+  ];
 
-    if (pin.length !== 4) {
-      setError('O PIN deve ter 4 dígitos');
+  const handlePinChange = (value: string, index: number) => {
+    const newPin = [...pin];
+    newPin[index] = value.replace(/[^0-9]/g, '');
+    setPin(newPin);
+
+    // Move to next input if value entered
+    if (value && index < 3) {
+      pinRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handlePinKeyPress = (key: string, index: number) => {
+    // Move to previous input on backspace if current is empty
+    if (key === 'Backspace' && !pin[index] && index > 0) {
+      pinRefs[index - 1].current?.focus();
+    }
+  };
+
+  const handleLogin = async () => {
+    const fullPin = pin.join('');
+
+    if (!username || fullPin.length !== 4) {
+      setError('Preencha todos os campos');
       return;
     }
 
@@ -45,7 +69,7 @@ const ChildLoginScreen: React.FC = () => {
     setError('');
 
     try {
-      await signIn({ emailOrUsername: username, password: pin });
+      await signIn({ emailOrUsername: username, password: fullPin });
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
     } finally {
@@ -63,47 +87,62 @@ const ChildLoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.common.white} />
+          </TouchableOpacity>
+
           <Image
             source={require('../../../assets/porco-feliz.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Olá, Criança!</Text>
-          <Text style={styles.subtitle}>Digite seu username e PIN para entrar</Text>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={styles.logoTextImage}
+            resizeMode="contain"
+          />
         </View>
 
-        <Surface style={styles.card} elevation={4}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pronto pra aventura?</Text>
+          <Text style={styles.cardSubtitle}>Digite seu username e PIN</Text>
+
           <TextInput
-            label="Username"
             value={username}
             onChangeText={(text) => setUsername(text.toLowerCase())}
             mode="outlined"
             autoCapitalize="none"
-            style={styles.input}
+            style={styles.usernameInput}
             left={<TextInput.Icon icon="at" />}
-            outlineColor={COLORS.child.primary}
+            outlineColor={COLORS.common.border}
             activeOutlineColor={COLORS.child.primary}
-            placeholder="joao_silva"
+            outlineStyle={styles.inputOutline}
+            placeholder="Username"
+            placeholderTextColor={COLORS.common.textMuted}
           />
 
-          <TextInput
-            label="PIN (4 dígitos)"
-            value={pin}
-            onChangeText={(text) => {
-              // Apenas números, máximo 4 dígitos
-              const numbers = text.replace(/[^0-9]/g, '').slice(0, 4);
-              setPin(numbers);
-            }}
-            mode="outlined"
-            keyboardType="number-pad"
-            secureTextEntry
-            maxLength={4}
-            style={styles.input}
-            left={<TextInput.Icon icon="lock" />}
-            outlineColor={COLORS.child.primary}
-            activeOutlineColor={COLORS.child.primary}
-            placeholder="••••"
-          />
+          <Text style={styles.pinLabel}>PIN (4 digitos)</Text>
+
+          <View style={styles.pinContainer}>
+            {pin.map((digit, index) => (
+              <View key={index} style={styles.pinBox}>
+                <RNTextInput
+                  ref={pinRefs[index]}
+                  style={styles.pinInput}
+                  value={digit}
+                  onChangeText={(value) => handlePinChange(value, index)}
+                  onKeyPress={({ nativeEvent }) => handlePinKeyPress(nativeEvent.key, index)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  secureTextEntry
+                  selectTextOnFocus
+                />
+              </View>
+            ))}
+          </View>
 
           <Button
             mode="contained"
@@ -111,26 +150,12 @@ const ChildLoginScreen: React.FC = () => {
             loading={loading}
             disabled={loading}
             style={styles.button}
-            buttonColor={COLORS.child.primary}
+            buttonColor={COLORS.child.success}
             contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
           >
-            Entrar 🚀
+            Vamos jogar!
           </Button>
-
-          <Button
-            mode="text"
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            textColor={COLORS.common.textLight}
-          >
-            Voltar
-          </Button>
-        </Surface>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Peça ajuda aos seus pais se não conseguir entrar! 👨‍👩‍👧‍👦
-          </Text>
         </View>
       </ScrollView>
 
@@ -148,63 +173,98 @@ const ChildLoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.child.background,
+    backgroundColor: COLORS.child.primary,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
   },
   header: {
+    backgroundColor: COLORS.child.primary,
+    paddingTop: 60,
+    paddingBottom: 40,
     alignItems: 'center',
-    marginBottom: 30,
-  },
-  logoImage: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: COLORS.child.primary,
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: COLORS.common.textLight,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  card: {
-    padding: 25,
-    borderRadius: 20,
-    backgroundColor: COLORS.common.white,
-  },
-  input: {
-    marginBottom: 20,
-    fontSize: 18,
-  },
-  button: {
-    marginTop: 10,
-    paddingVertical: 8,
-  },
-  buttonContent: {
-    paddingVertical: 4,
   },
   backButton: {
-    marginTop: 10,
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    padding: 8,
   },
-  footer: {
-    marginTop: 30,
-    padding: 15,
-    backgroundColor: COLORS.child.secondary + '20',
-    borderRadius: 12,
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 8,
   },
-  footerText: {
-    fontSize: 16,
+  logoTextImage: {
+    width: 140,
+    height: 40,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: COLORS.common.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: COLORS.common.text,
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  usernameInput: {
+    backgroundColor: COLORS.common.white,
+    marginBottom: 24,
+  },
+  inputOutline: {
+    borderRadius: 25,
+  },
+  pinLabel: {
+    fontSize: 14,
+    color: COLORS.common.text,
+    marginBottom: 12,
+  },
+  pinContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  pinBox: {
+    width: 65,
+    height: 65,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.common.border,
+    backgroundColor: COLORS.common.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pinInput: {
+    fontSize: 24,
+    textAlign: 'center',
+    width: '100%',
+    height: '100%',
+    color: COLORS.common.text,
+  },
+  button: {
+    borderRadius: 25,
+    marginTop: 10,
+  },
+  buttonContent: {
+    paddingVertical: 8,
+  },
+  buttonLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

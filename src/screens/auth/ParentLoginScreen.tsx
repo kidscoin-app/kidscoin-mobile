@@ -1,5 +1,5 @@
 /**
- * Tela de Login
+ * Tela de Login dos Pais
  */
 import React, { useState } from 'react';
 import {
@@ -9,16 +9,17 @@ import {
   Platform,
   ScrollView,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import {
   TextInput,
   Button,
   Text,
-  Surface,
   Snackbar,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -66,29 +67,41 @@ const ParentLoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.common.white} />
+          </TouchableOpacity>
+
           <Image
             source={require('../../../assets/logo-porco.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Ola, Pai/Mae!</Text>
-          <Text style={styles.subtitle}>Digite seu email e senha para entrar</Text>
+          <Text style={styles.headerSubtitle}>Acesso para Pais</Text>
         </View>
 
-        <Surface style={styles.card} elevation={2}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Ola, Pai/Mae!</Text>
+          <Text style={styles.cardSubtitle}>Digite seu email e senha</Text>
+
           <TextInput
-            label="Email"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => setEmail(text.toLowerCase())}
             mode="outlined"
             keyboardType="email-address"
             autoCapitalize="none"
             style={styles.input}
             left={<TextInput.Icon icon="email" />}
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={COLORS.parent.primary}
+            outlineStyle={styles.inputOutline}
+            placeholder="Email"
+            placeholderTextColor={COLORS.common.textMuted}
           />
 
           <TextInput
-            label="Senha"
             value={password}
             onChangeText={setPassword}
             mode="outlined"
@@ -101,6 +114,11 @@ const ParentLoginScreen: React.FC = () => {
                 onPress={() => setShowPassword(!showPassword)}
               />
             }
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={COLORS.parent.primary}
+            outlineStyle={styles.inputOutline}
+            placeholder="Senha"
+            placeholderTextColor={COLORS.common.textMuted}
           />
 
           <Button
@@ -110,29 +128,22 @@ const ParentLoginScreen: React.FC = () => {
             disabled={loading}
             style={styles.button}
             buttonColor={COLORS.parent.primary}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
           >
             Entrar
           </Button>
 
-          <View style={styles.linkContainer}>
-            <Text style={styles.linkText}>Não tem conta? </Text>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Nao tem conta? </Text>
             <Text
-              style={styles.link}
+              style={styles.footerLink}
               onPress={() => navigation.navigate('Register')}
             >
               Cadastre-se
             </Text>
           </View>
-
-          <Button
-            mode="text"
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            textColor={COLORS.common.textLight}
-          >
-            Voltar
-          </Button>
-        </Surface>
+        </View>
       </ScrollView>
 
       <Snackbar
@@ -149,64 +160,92 @@ const ParentLoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.parent.background,
+    backgroundColor: COLORS.parent.primary,
   },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#fff'
   },
   header: {
     backgroundColor: COLORS.parent.primary,
-    padding: 20,
-    paddingTop: 80,
-    paddingBottom: 50,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: 60,
+    paddingBottom: 40,
     alignItems: 'center',
   },
-  logoImage: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    padding: 8,
   },
-  title: {
-    fontSize: 28,
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 10,
+  },
+  logoText: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: COLORS.common.white,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
+  headerSubtitle: {
+    fontSize: 14,
     color: COLORS.common.white,
+    opacity: 0.9,
   },
   card: {
-    padding: 20,
-    borderRadius: 12,
+    flex: 1,
     backgroundColor: COLORS.common.white,
-    marginTop: -30,
-    marginHorizontal: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.common.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    textAlign: 'center',
+    marginBottom: 30,
   },
   input: {
-    marginBottom: 15,
+    backgroundColor: COLORS.common.white,
+    marginBottom: 16,
+  },
+  inputOutline: {
+    borderRadius: 25,
   },
   button: {
+    borderRadius: 25,
     marginTop: 10,
-    paddingVertical: 6,
   },
-  linkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 15,
+  buttonContent: {
+    paddingVertical: 8,
   },
-  linkText: {
-    color: COLORS.common.textLight,
-  },
-  link: {
-    color: COLORS.parent.primary,
+  buttonLabel: {
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  backButton: {
-    marginTop: 10,
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  footerText: {
+    color: COLORS.common.textLight,
+    fontSize: 15,
+  },
+  footerLink: {
+    color: COLORS.parent.primary,
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
 
