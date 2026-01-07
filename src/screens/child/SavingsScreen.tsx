@@ -124,7 +124,7 @@ const SavingsScreen: React.FC = () => {
     }
 
     if (goalValue < currentBalance) {
-      showSnackbar('A meta não pode ser menor que o saldo atual', 'error');
+      showSnackbar('A meta precisa ser maior do que você já tem guardado', 'error');
       return;
     }
 
@@ -184,7 +184,7 @@ const SavingsScreen: React.FC = () => {
       return;
     }
     if (!wallet || amount > wallet.balance) {
-      showSnackbar('Saldo insuficiente na carteira', 'error');
+      showSnackbar('Você não tem moedas suficientes na carteira', 'error');
       return;
     }
 
@@ -198,8 +198,8 @@ const SavingsScreen: React.FC = () => {
       showSnackbar('Digite um valor válido', 'error');
       return;
     }
-    if (!savings || amount > savings.balance) {
-      showSnackbar('Saldo insuficiente na poupança', 'error');
+    if (!savings || amount > savings.availableBalance) {
+      showSnackbar('Você não tem moedas suficientes na poupança', 'error');
       return;
     }
 
@@ -227,9 +227,30 @@ const SavingsScreen: React.FC = () => {
           <View style={styles.balanceHeader}>
             <MaterialCommunityIcons name="piggy-bank" size={48} color="#4CAF50" />
             <View style={styles.balanceInfo}>
-              <Text style={styles.balanceLabel}>Saldo na Poupança</Text>
-              <Text style={styles.balanceValue}>{savings?.balance || 0}</Text>
+              <Text style={styles.balanceLabel}>Minha Poupança</Text>
+
+              {/* Total disponível (destaque) */}
+              <Text style={styles.availableLabel}>VOCÊ TEM AGORA</Text>
+              <Text style={styles.balanceValue}>{savings?.availableBalance || 0}</Text>
               <Text style={styles.balanceSubtext}>moedas</Text>
+
+              {/* Separador visual */}
+              <View style={styles.totalDivider} />
+
+              {/* Principal depositado */}
+              <Text style={styles.principalText}>
+                Você guardou: {savings?.balance || 0} moedas
+              </Text>
+
+              {/* Juros acumulados - COM DESTAQUE */}
+              {(savings?.pendingInterest || 0) > 0 && (
+                <View style={styles.bonusContainer}>
+                  <MaterialCommunityIcons name="trending-up" size={20} color="#4CAF50" />
+                  <Text style={styles.interestText}>
+                    Ganhou de bônus: <Text style={styles.interestHighlight}>+{savings?.pendingInterest || 0} moedas</Text>
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -238,13 +259,13 @@ const SavingsScreen: React.FC = () => {
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="cash-plus" size={24} color="#2196F3" />
               <Text style={styles.statValue}>{savings?.totalDeposited || 0}</Text>
-              <Text style={styles.statLabel}>Total Depositado</Text>
+              <Text style={styles.statLabel}>Você Colocou</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="trending-up" size={24} color="#FF9800" />
               <Text style={styles.statValue}>{savings?.totalEarned || 0}</Text>
-              <Text style={styles.statLabel}>Total Rendido</Text>
+              <Text style={styles.statLabel}>Você Ganhou</Text>
             </View>
           </View>
         </Card.Content>
@@ -314,9 +335,9 @@ const SavingsScreen: React.FC = () => {
         <Card.Content>
           <View style={styles.simulatorHeader}>
             <MaterialCommunityIcons name="calculator" size={32} color="#00BCD4" />
-            <Text style={styles.simulatorTitle}>Quanto vai render?</Text>
+            <Text style={styles.simulatorTitle}>Quanto vai crescer?</Text>
           </View>
-          <Text style={styles.simulatorSubtitle}>Sua poupança rende 2% toda semana! 📈</Text>
+          <Text style={styles.simulatorSubtitle}>Sua poupança cresce 2% toda semana! 📈</Text>
           <View style={styles.simulationList}>
             <View style={styles.simulationItem}>
               <Text style={styles.simulationPeriod}>Em 1 semana:</Text>
@@ -382,7 +403,7 @@ const SavingsScreen: React.FC = () => {
         >
           <Text style={styles.modalTitle}>Depositar na Poupança</Text>
           <Text style={styles.modalSubtitle}>
-            Saldo disponível: <Text style={styles.modalBalance}>{wallet?.balance || 0} moedas</Text>
+            Você tem na carteira: <Text style={styles.modalBalance}>{wallet?.balance || 0} moedas</Text>
           </Text>
           <TextInput
             label="Valor a depositar"
@@ -427,7 +448,7 @@ const SavingsScreen: React.FC = () => {
         >
           <Text style={styles.modalTitle}>Sacar da Poupança</Text>
           <Text style={styles.modalSubtitle}>
-            Saldo na poupança: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
+            Você pode sacar: <Text style={styles.modalBalance}>{savings?.availableBalance || 0} moedas</Text>
           </Text>
           {getTimeBonus() > 0 && (
             <View style={styles.bonusBadge}>
@@ -482,17 +503,17 @@ const SavingsScreen: React.FC = () => {
           onDismiss={() => setGoalModalVisible(false)}
           contentContainerStyle={styles.modal}
         >
-          <Text style={styles.modalTitle}>Editar Meta de Poupança</Text>
+          <Text style={styles.modalTitle}>Mudar sua Meta</Text>
           <Text style={styles.modalSubtitle}>
-            Saldo atual: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
+            Você já tem: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
           </Text>
           <Text style={styles.modalSubtitle}>
-            Meta atual: <Text style={styles.modalBalance}>{savingsGoal} moedas</Text>
+            Sua meta agora: <Text style={styles.modalBalance}>{savingsGoal} moedas</Text>
           </Text>
           <View style={styles.warningBox}>
             <MaterialCommunityIcons name="information" size={20} color="#FF9800" />
             <Text style={styles.warningText}>
-              A nova meta deve ser maior ou igual ao saldo atual da poupança ({savings?.balance || 0} moedas)
+              Sua nova meta precisa ser pelo menos {savings?.balance || 0} moedas (o que você já tem guardado)
             </Text>
           </View>
           <TextInput
@@ -586,6 +607,45 @@ const styles = StyleSheet.create({
   balanceSubtext: {
     fontSize: 16,
     color: '#666',
+  },
+  availableLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  totalDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 12,
+  },
+  principalText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  bonusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+    gap: 6,
+  },
+  interestText: {
+    fontSize: 15,
+    color: '#2E7D32',
+    fontWeight: '600',
+    flex: 1,
+  },
+  interestHighlight: {
+    fontSize: 17,
+    color: '#4CAF50',
+    fontWeight: 'bold',
   },
   statsRow: {
     flexDirection: 'row',
