@@ -266,7 +266,7 @@ const SavingsScreen: React.FC = () => {
             onPress={() => setDepositSheetVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="arrow-down-circle-outline" size={24} color="#fff" />
+            <MaterialCommunityIcons name="arrow-down-circle-outline" size={24} color={GREEN_THEME.dark} />
             <Text style={styles.depositButtonText}>Depositar</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -274,7 +274,7 @@ const SavingsScreen: React.FC = () => {
             onPress={() => setWithdrawSheetVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="arrow-up-circle-outline" size={24} color="#333" />
+            <MaterialCommunityIcons name="arrow-up-circle-outline" size={24} color="#fff" />
             <Text style={styles.withdrawButtonText}>Sacar</Text>
           </TouchableOpacity>
         </View>
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GREEN_THEME.dark,
+    backgroundColor: '#fff',
     paddingVertical: 14,
     borderRadius: 24,
     gap: 8,
@@ -660,27 +660,24 @@ const styles = StyleSheet.create({
   depositButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: GREEN_THEME.dark,
   },
   withdrawButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFC107',
+    backgroundColor: 'transparent',
     paddingVertical: 14,
     borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#fff',
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   withdrawButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#fff',
   },
 
   // Stats Cards
