@@ -15,9 +15,10 @@ import {
   usePendingRedemptions,
   useNotifications,
   useApproveTask,
-  useRejectTask, 
+  useRejectTask,
   useApproveRedemption,
   useRejectRedemption,
+  useRefreshOnFocus,
 } from '../../hooks';
 import { COLORS } from '../../utils/constants';
 import NotificationsModal from '../../components/NotificationsModal';
@@ -56,6 +57,11 @@ const ParentDashboardScreen: React.FC = () => {
     data: notifications = [],
     refetch: refetchNotifications,
   } = useNotifications();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
+  useRefreshOnFocus(refetchRedemptions);
+  useRefreshOnFocus(refetchNotifications);
 
   // Mutation hooks
   const { mutate: approveTask, isPending: approvingTask } = useApproveTask();

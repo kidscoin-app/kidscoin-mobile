@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
-import { useGamification, useWallet, useTasks, useNotifications } from '../../hooks';
+import { useGamification, useWallet, useTasks, useNotifications, useRefreshOnFocus } from '../../hooks';
 import NotificationsModal from '../../components/NotificationsModal';
 
 const ChildDashboardScreen: React.FC = () => {
@@ -39,6 +39,12 @@ const ChildDashboardScreen: React.FC = () => {
     data: notifications = [],
     refetch: refetchNotifications,
   } = useNotifications();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
+  useRefreshOnFocus(refetchNotifications);
+  useRefreshOnFocus(refetchGamification);
+  useRefreshOnFocus(refetchWallet);
 
   // Estado do modal de notificações
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);

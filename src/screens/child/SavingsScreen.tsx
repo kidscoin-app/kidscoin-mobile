@@ -19,7 +19,7 @@ import {
 import { ActivityIndicator, Snackbar, Text, TextInput } from 'react-native-paper';
 import { BottomSheet } from '../../components';
 import { COLORS } from '../../utils/constants';
-import { useSavings, useWallet, useDepositSavings, useWithdrawSavings } from '../../hooks';
+import { useSavings, useWallet, useDepositSavings, useWithdrawSavings, useRefreshOnFocus } from '../../hooks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STAT_CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -48,6 +48,10 @@ const SavingsScreen: React.FC = () => {
     isLoading: loadingWallet,
     refetch: refetchWallet,
   } = useWallet();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchSavings);
+  useRefreshOnFocus(refetchWallet);
 
   const loading = loadingSavings || loadingWallet;
 

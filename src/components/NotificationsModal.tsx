@@ -19,8 +19,6 @@ import {
   useNotifications,
   useMarkAsRead,
   useMarkAllAsRead,
-  useApproveTask,
-  useApproveRedemption,
 } from '../hooks';
 import { Notification, NotificationType } from '../types';
 import { COLORS } from '../utils/constants';
@@ -118,19 +116,6 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const { data: allNotifications = [], isLoading } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
-
-  // Hooks de aprovação (apenas para pai)
-  const approveTask = useApproveTask({
-    onSuccess: () => {
-      // Notificação será removida automaticamente após invalidação
-    },
-  });
-
-  const approveRedemption = useApproveRedemption({
-    onSuccess: () => {
-      // Notificação será removida automaticamente após invalidação
-    },
-  });
 
   // Cor primária baseada no tipo de usuário
   const primaryColor = userType === 'parent' ? COLORS.parent.primary : COLORS.child.primary;
@@ -232,22 +217,6 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   };
 
-  // Aprovar tarefa ou resgate
-  const handleApprove = (notification: Notification) => {
-    if (!notification.referenceId) return;
-
-    if (notification.type === 'TASK_COMPLETED') {
-      approveTask.mutate(notification.referenceId);
-    } else if (notification.type === 'REDEMPTION_REQUESTED') {
-      approveRedemption.mutate(notification.referenceId);
-    }
-
-    // Marcar como lida
-    if (!notification.isRead) {
-      markAsRead.mutate(notification.id);
-    }
-  };
-
   // Navegar para ver detalhes
   const handleViewDetails = (notification: Notification) => {
     onClose();
@@ -269,18 +238,6 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const getSubtitle = (): string => {
     if (unreadCount === 0) return 'Tudo em dia!';
     return `${unreadCount} não lida${unreadCount > 1 ? 's' : ''}`;
-  };
-
-  // Verificar se está aprovando esta notificação
-  const isApproving = (notification: Notification): boolean => {
-    if (!notification.referenceId) return false;
-    if (notification.type === 'TASK_COMPLETED') {
-      return approveTask.isPending;
-    }
-    if (notification.type === 'REDEMPTION_REQUESTED') {
-      return approveRedemption.isPending;
-    }
-    return false;
   };
 
   // Renderizar item de notificação
@@ -323,21 +280,9 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
           <View style={styles.actionButtons}>
             <Button
               mode="contained"
-              onPress={() => handleApprove(item)}
-              loading={isApproving(item)}
-              disabled={isApproving(item)}
-              style={styles.approveButton}
-              buttonColor="#10B981"
-              icon="check"
-              compact
-            >
-              Aprovar
-            </Button>
-            <Button
-              mode="outlined"
               onPress={() => handleViewDetails(item)}
               style={styles.detailsButton}
-              textColor={primaryColor}
+              buttonColor={primaryColor}
               icon="arrow-right"
               compact
             >
@@ -607,10 +552,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     gap: 10,
-  },
-  approveButton: {
-    flex: 1,
-    borderRadius: 8,
   },
   detailsButton: {
     flex: 1,

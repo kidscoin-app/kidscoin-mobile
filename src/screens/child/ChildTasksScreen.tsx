@@ -15,7 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getErrorMessage } from '../../services';
 import { TaskCategory } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { useTasks, useCompleteTask, useRetryTask } from '../../hooks';
+import { useTasks, useCompleteTask, useRetryTask, useRefreshOnFocus } from '../../hooks';
 
 // Categorias disponiveis com icones
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
@@ -42,7 +42,10 @@ const ChildTasksScreen: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   // React Query hooks
-  const { data: tasks = [], isLoading: loading } = useTasks();
+  const { data: tasks = [], isLoading: loading, refetch: refetchTasks } = useTasks();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
 
   const completeTask = useCompleteTask({
     onSuccess: () => {

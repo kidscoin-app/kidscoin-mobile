@@ -22,16 +22,20 @@ import {
   useRewards,
   useCreateReward,
   useToggleReward,
+  useRefreshOnFocus,
+  usePendingRedemptions,
+  useApproveRedemption,
+  useRejectRedemption,
 } from '../../hooks';
 import { getErrorMessage } from '../../services';
 import { COLORS } from '../../utils/constants';
 import { BottomSheet } from '../../components';
 
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+type StatusFilter = 'PENDING' | 'ACTIVE' | 'INACTIVE';
 
 const CreateRewardScreen: React.FC = () => {
   // Filtro
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
 
   // Bottom Sheet
   const [showCreateSheet, setShowCreateSheet] = useState(false);
@@ -46,7 +50,12 @@ const CreateRewardScreen: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   // React Query hooks
-  const { data: rewards = [], isLoading: loadingRewards } = useRewards();
+  const { data: rewards = [], isLoading: loadingRewards, refetch: refetchRewards } = useRewards();
+  const { data: pendingRedemptions = [], isLoading: loadingRedemptions, refetch: refetchRedemptions } = usePendingRedemptions();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchRewards);
+  useRefreshOnFocus(refetchRedemptions);
 
   const createReward = useCreateReward({
     onSuccess: () => {
@@ -68,6 +77,24 @@ const CreateRewardScreen: React.FC = () => {
     },
   });
 
+  const approveRedemption = useApproveRedemption({
+    onSuccess: (redemption) => {
+      setSuccess(`Resgate de "${redemption.reward.name}" aprovado!`);
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
+  const rejectRedemption = useRejectRedemption({
+    onSuccess: () => {
+      setSuccess('Resgate rejeitado. Moedas devolvidas.');
+    },
+    onError: (err) => {
+      setError(getErrorMessage(err));
+    },
+  });
+
   // Calculos
   const totalCoins = useMemo(() => {
     return rewards.reduce((sum, r) => sum + r.coinCost, 0);
@@ -77,7 +104,7 @@ const CreateRewardScreen: React.FC = () => {
     return rewards.filter((r) => r.isActive).length;
   }, [rewards]);
 
-  // Filtrar recompensas
+  // Filtrar recompensas (apenas para ativas/inativas)
   const filteredRewards = useMemo(() => {
     switch (statusFilter) {
       case 'ACTIVE':
@@ -85,9 +112,12 @@ const CreateRewardScreen: React.FC = () => {
       case 'INACTIVE':
         return rewards.filter((r) => !r.isActive);
       default:
-        return rewards;
+        return [];
     }
   }, [rewards, statusFilter]);
+
+  // Contagem de redenções pendentes
+  const pendingCount = pendingRedemptions.length;
 
   /**
    * Resetar formulario
@@ -138,21 +168,30 @@ const CreateRewardScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Card de Resumo */}
       <View style={styles.summaryCard}>
-        <View style={styles.summaryLeft}>
+        <View style={styles.summaryItem}>
           <View style={styles.summaryIconCircle}>
-            <MaterialCommunityIcons name="gift-outline" size={28} color={COLORS.parent.primary} />
+            <MaterialCommunityIcons
+              name="gift-outline"
+              size={24}
+              color={COLORS.parent.primary}
+            />
           </View>
-          <View>
-            <Text style={styles.summaryLabel}>Total em recompensas</Text>
-            <View style={styles.summaryValueRow}>
-              <Text style={styles.summaryValue}>{totalCoins}</Text>
-              <MaterialCommunityIcons name="hand-coin" size={20} color="#FFC107" />
-            </View>
-          </View>
+          <Text style={styles.summaryValue}>{activeCount}</Text>
+          <Text style={styles.summaryLabel}>Ativas</Text>
         </View>
-        <View style={styles.summaryRight}>
-          <Text style={styles.summaryRightLabel}>Disponiveis</Text>
-          <Text style={styles.summaryRightValue}>{activeCount}</Text>
+
+        <View style={styles.summaryDivider} />
+
+        <View style={styles.summaryItem}>
+          <View style={styles.summaryIconCircle}>
+            <MaterialCommunityIcons
+              name="clock-outline"
+              size={24}
+              color={COLORS.parent.primary}
+            />
+          </View>
+          <Text style={styles.summaryValue}>{pendingCount}</Text>
+          <Text style={styles.summaryLabel}>Aguardando</Text>
         </View>
       </View>
 
@@ -164,13 +203,13 @@ const CreateRewardScreen: React.FC = () => {
           contentContainerStyle={styles.filters}
         >
           <Chip
-            selected={statusFilter === 'ALL'}
-            onPress={() => setStatusFilter('ALL')}
-            style={[styles.filterChip, statusFilter === 'ALL' && styles.filterChipSelected]}
-            textStyle={[styles.filterChipText, statusFilter === 'ALL' && styles.filterChipTextSelected]}
+            selected={statusFilter === 'PENDING'}
+            onPress={() => setStatusFilter('PENDING')}
+            style={[styles.filterChip, statusFilter === 'PENDING' && styles.filterChipPending]}
+            textStyle={[styles.filterChipText, statusFilter === 'PENDING' && styles.filterChipTextSelected]}
             showSelectedOverlay={false}
           >
-            Todas
+            Aguardando {pendingCount > 0 && `(${pendingCount})`}
           </Chip>
           <Chip
             selected={statusFilter === 'ACTIVE'}
@@ -193,68 +232,148 @@ const CreateRewardScreen: React.FC = () => {
         </HorizontalScroll>
       </View>
 
-      {/* Lista de Recompensas */}
+      {/* Lista */}
       <ScrollView style={styles.rewardList} contentContainerStyle={styles.rewardListContent}>
-        {loadingRewards ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Carregando...</Text>
-          </View>
-        ) : filteredRewards.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons
-              name="gift-outline"
-              size={48}
-              color={COLORS.common.textLight}
-            />
-            <Text style={styles.emptyText}>
-              {statusFilter === 'ALL'
-                ? 'Nenhuma recompensa criada ainda'
-                : statusFilter === 'ACTIVE'
-                ? 'Nenhuma recompensa ativa'
-                : 'Nenhuma recompensa inativa'}
-            </Text>
-          </View>
-        ) : (
-          filteredRewards.map((reward) => (
-            <View key={reward.id} style={styles.rewardCard}>
-              <View style={styles.rewardCardHeader}>
-                <View style={styles.rewardIconCircle}>
-                  <MaterialCommunityIcons name="gift-outline" size={24} color={COLORS.parent.primary} />
-                </View>
-                <View style={styles.rewardContent}>
-                  <Text
-                    style={[styles.rewardName, !reward.isActive && styles.rewardNameInactive]}
-                    numberOfLines={1}
-                  >
-                    {reward.name}
-                  </Text>
-                  {reward.description && (
-                    <Text style={styles.rewardDescription} numberOfLines={2}>
-                      {reward.description}
-                    </Text>
-                  )}
-                </View>
-                <View
-                  style={[
-                    styles.statusDot,
-                    reward.isActive ? styles.statusDotActive : styles.statusDotInactive,
-                  ]}
-                />
+        {/* Aba de Pendentes */}
+        {statusFilter === 'PENDING' && (
+          <>
+            {loadingRedemptions ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Carregando...</Text>
               </View>
-
-              <View style={styles.rewardCardFooter}>
-                <View style={styles.coinContainer}>
-                  <MaterialCommunityIcons name="hand-coin" size={18} color="#FFC107" />
-                  <Text style={styles.coinText}>{reward.coinCost} moedas</Text>
-                </View>
-                <Switch
-                  value={reward.isActive}
-                  onValueChange={() => toggleReward.mutate(reward.id)}
+            ) : pendingRedemptions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons
+                  name="check-circle-outline"
+                  size={48}
                   color={COLORS.child.success}
                 />
+                <Text style={styles.emptyText}>Nenhum pedido pendente</Text>
+                <Text style={styles.emptySubtext}>
+                  Quando as crianças pedirem recompensas, aparecerão aqui
+                </Text>
               </View>
-            </View>
-          ))
+            ) : (
+              pendingRedemptions.map((redemption) => (
+                <View key={redemption.id} style={styles.pendingCard}>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>AGUARDANDO</Text>
+                  </View>
+                  <View style={styles.rewardCardHeader}>
+                    <View style={[styles.rewardIconCircle, styles.pendingIconCircle]}>
+                      <MaterialCommunityIcons name="gift" size={24} color="#F59E0B" />
+                    </View>
+                    <View style={styles.rewardContent}>
+                      <Text style={styles.rewardName} numberOfLines={1}>
+                        {redemption.reward.name}
+                      </Text>
+                      <Text style={styles.childName}>
+                        Pedido por: {redemption.childName}
+                      </Text>
+                      <Text style={styles.requestDate}>
+                        {new Date(redemption.requestedAt).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.pendingCost}>
+                    <MaterialCommunityIcons name="hand-coin" size={18} color="#FFC107" />
+                    <Text style={styles.coinText}>{redemption.reward.coinCost} moedas</Text>
+                  </View>
+                  <View style={styles.pendingActions}>
+                    <TouchableOpacity
+                      style={styles.rejectButton}
+                      onPress={() => rejectRedemption.mutate({
+                        redemptionId: redemption.id,
+                        data: { rejectionReason: 'Não aprovado pelo responsável' }
+                      })}
+                      disabled={approveRedemption.isPending || rejectRedemption.isPending}
+                    >
+                      <MaterialCommunityIcons name="close" size={18} color={COLORS.common.error} />
+                      <Text style={styles.rejectButtonText}>Recusar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.approveButton}
+                      onPress={() => approveRedemption.mutate(redemption.id)}
+                      disabled={approveRedemption.isPending || rejectRedemption.isPending}
+                    >
+                      <MaterialCommunityIcons name="check" size={18} color="#fff" />
+                      <Text style={styles.approveButtonText}>Aprovar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
+
+        {/* Aba de Ativas/Inativas */}
+        {(statusFilter === 'ACTIVE' || statusFilter === 'INACTIVE') && (
+          <>
+            {loadingRewards ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Carregando...</Text>
+              </View>
+            ) : filteredRewards.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons
+                  name="gift-outline"
+                  size={48}
+                  color={COLORS.common.textLight}
+                />
+                <Text style={styles.emptyText}>
+                  {statusFilter === 'ACTIVE'
+                    ? 'Nenhuma recompensa ativa'
+                    : 'Nenhuma recompensa inativa'}
+                </Text>
+              </View>
+            ) : (
+              filteredRewards.map((reward) => (
+                <View key={reward.id} style={styles.rewardCard}>
+                  <View style={styles.rewardCardHeader}>
+                    <View style={styles.rewardIconCircle}>
+                      <MaterialCommunityIcons name="gift-outline" size={24} color={COLORS.parent.primary} />
+                    </View>
+                    <View style={styles.rewardContent}>
+                      <Text
+                        style={[styles.rewardName, !reward.isActive && styles.rewardNameInactive]}
+                        numberOfLines={1}
+                      >
+                        {reward.name}
+                      </Text>
+                      {reward.description && (
+                        <Text style={styles.rewardDescription} numberOfLines={2}>
+                          {reward.description}
+                        </Text>
+                      )}
+                    </View>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        reward.isActive ? styles.statusDotActive : styles.statusDotInactive,
+                      ]}
+                    />
+                  </View>
+
+                  <View style={styles.rewardCardFooter}>
+                    <View style={styles.coinContainer}>
+                      <MaterialCommunityIcons name="hand-coin" size={18} color="#FFC107" />
+                      <Text style={styles.coinText}>{reward.coinCost} moedas</Text>
+                    </View>
+                    <Switch
+                      value={reward.isActive}
+                      onValueChange={() => toggleReward.mutate(reward.id)}
+                      color={COLORS.child.success}
+                    />
+                  </View>
+                </View>
+              ))
+            )}
+          </>
         )}
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -367,55 +486,43 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#F3E5F5',
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
-    padding: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     borderRadius: 16,
   },
-  summaryLeft: {
-    flexDirection: 'row',
+  summaryItem: {
+    flex: 1,
     alignItems: 'center',
-    gap: 12,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   summaryIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
+  },
+  summaryValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.common.text,
+    marginBottom: 2,
   },
   summaryLabel: {
     fontSize: 13,
     color: COLORS.common.textLight,
-    marginBottom: 2,
-  },
-  summaryValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.common.text,
-  },
-  summaryRight: {
-    alignItems: 'flex-end',
-  },
-  summaryRightLabel: {
-    fontSize: 13,
-    color: COLORS.common.textLight,
-    marginBottom: 2,
-  },
-  summaryRightValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.parent.primary,
   },
   filtersContainer: {
     paddingVertical: 12,
@@ -430,6 +537,9 @@ const styles = StyleSheet.create({
   },
   filterChipSelected: {
     backgroundColor: COLORS.parent.primary,
+  },
+  filterChipPending: {
+    backgroundColor: '#F59E0B',
   },
   filterChipText: {
     color: COLORS.common.text,
@@ -457,6 +567,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.common.textLight,
     textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 12,
+    color: COLORS.common.textLight,
+    textAlign: 'center',
+    marginTop: -8,
+  },
+  pendingCard: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    paddingTop: 28,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    overflow: 'hidden',
+  },
+  pendingBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: '#F59E0B',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderBottomRightRadius: 12,
+  },
+  pendingBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  pendingIconCircle: {
+    backgroundColor: '#FEF3C7',
+  },
+  childName: {
+    fontSize: 14,
+    color: COLORS.parent.primary,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  requestDate: {
+    fontSize: 12,
+    color: COLORS.common.textLight,
+  },
+  pendingCost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  rejectButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.common.error,
+    backgroundColor: '#FEF2F2',
+    gap: 6,
+  },
+  rejectButtonText: {
+    color: COLORS.common.error,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  approveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.child.success,
+    gap: 6,
+  },
+  approveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   rewardCard: {
     backgroundColor: '#fff',

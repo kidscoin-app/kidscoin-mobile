@@ -30,6 +30,7 @@ import {
   useApproveTask,
   useRejectTask,
   useDeleteTask,
+  useRefreshOnFocus,
 } from '../../hooks';
 import { getErrorMessage } from '../../services';
 import { RecurrenceType, TaskAssignment, TaskCategory } from '../../types';
@@ -96,7 +97,10 @@ const ManageTasksScreen: React.FC = () => {
 
   // React Query hooks
   const { data: children = [] } = useChildren();
-  const { data: tasks = [], isLoading: loadingTasks } = useTasks();
+  const { data: tasks = [], isLoading: loadingTasks, refetch: refetchTasks } = useTasks();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
 
   const createTask = useCreateTask({
     onSuccess: () => {

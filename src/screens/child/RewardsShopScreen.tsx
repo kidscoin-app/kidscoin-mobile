@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getErrorMessage } from '../../services';
 import { Reward } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { useRewards, useWallet, useRequestRedemption } from '../../hooks';
+import { useRewards, useWallet, useRequestRedemption, useRefreshOnFocus } from '../../hooks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 colunas com padding
@@ -20,8 +20,12 @@ const RewardsShopScreen: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   // React Query hooks
-  const { data: rewards = [], isLoading } = useRewards({ activeOnly: true });
-  const { data: wallet } = useWallet();
+  const { data: rewards = [], isLoading, refetch: refetchRewards } = useRewards({ activeOnly: true });
+  const { data: wallet, refetch: refetchWallet } = useWallet();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchRewards);
+  useRefreshOnFocus(refetchWallet);
 
   const balance = wallet?.balance || 0;
 
