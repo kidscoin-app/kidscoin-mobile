@@ -12,6 +12,11 @@ export interface User {
   familyId: string;
   avatarUrl: string | null;
   username?: string; // Username da criança (usado para login)
+  // Propriedades opcionais para criancas
+  age?: number;
+  coinBalance?: number;
+  xpTotal?: number;
+  level?: number;
 }
 
 export interface RegisterData {
