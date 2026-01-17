@@ -31,11 +31,13 @@ const LoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Image
-            source={require('../../../assets/logo-porco.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.headerSubtitle}>Educacao Financeira Infantil</Text>
         </View>
 
@@ -104,14 +106,27 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.child.primary,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 40,
     alignItems: 'center',
   },
+  logoContainer: {
+    width: 180,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.common.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   logoImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 10,
+    width: 140,
+    height: 45,
   },
   logoText: {
     fontSize: 32,

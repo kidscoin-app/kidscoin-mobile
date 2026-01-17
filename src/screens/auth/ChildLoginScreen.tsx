@@ -99,11 +99,13 @@ const ChildLoginScreen: React.FC = () => {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Image
-            source={require('../../../assets/logo.png')}
-            style={styles.logoTextImage}
-            resizeMode="contain"
-          />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.logoTextImage}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -180,13 +182,13 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.child.primary,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 40,
     alignItems: 'center',
   },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 60,
     left: 20,
     padding: 8,
   },
@@ -195,9 +197,22 @@ const styles = StyleSheet.create({
     height: 120,
     marginBottom: 8,
   },
+  logoContainer: {
+    width: 180,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.common.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   logoTextImage: {
     width: 140,
-    height: 40,
+    height: 45,
   },
   card: {
     flex: 1,
