@@ -64,6 +64,7 @@ const ChildNavigator: React.FC = () => {
         component={RewardsShopScreen}
         options={{
           title: 'Loja',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="shopping" size={size} color={color} />
           ),

@@ -3,7 +3,15 @@
  * Migrado para React Query
  */
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  Platform,
+} from 'react-native';
 import { Snackbar, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getErrorMessage } from '../../services';
@@ -13,6 +21,7 @@ import { useRewards, useWallet, useRequestRedemption, useRefreshOnFocus } from '
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 colunas com padding
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 const RewardsShopScreen: React.FC = () => {
   // UI State
@@ -73,14 +82,33 @@ const RewardsShopScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.child.primary} />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Loja de Recompensas</Text>
-        <View style={styles.balanceContainer}>
-          <Text style={styles.balanceLabel}>Suas moedas</Text>
-          <View style={styles.balanceRow}>
-            <MaterialCommunityIcons name="hand-coin" size={28} color="#FFC107" />
-            <Text style={styles.balanceValue}>{balance.toLocaleString('pt-BR')}</Text>
+
+        <View style={styles.headerStats}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconCircle}>
+              <MaterialCommunityIcons name="gift-outline" size={24} color={COLORS.child.primary} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{rewards.length}</Text>
+              <Text style={styles.statLabel}>disponiveis</Text>
+            </View>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconCircle}>
+              <MaterialCommunityIcons name="hand-coin" size={24} color="#FFC107" />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{balance.toLocaleString('pt-BR')}</Text>
+              <Text style={styles.statLabel}>suas moedas</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -212,9 +240,10 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.child.primary,
-    paddingTop: 16,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerTitle: {
     fontSize: 24,
@@ -223,23 +252,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
-  balanceContainer: {
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 4,
-  },
-  balanceRow: {
+  headerStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
   },
-  balanceValue: {
-    fontSize: 36,
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  statIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
