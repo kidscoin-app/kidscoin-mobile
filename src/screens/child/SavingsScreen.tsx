@@ -266,7 +266,7 @@ const SavingsScreen: React.FC = () => {
             onPress={() => setDepositSheetVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="arrow-down-circle-outline" size={24} color={COLORS.child.primary} />
+            <MaterialCommunityIcons name="arrow-down-circle-outline" size={24} color="#fff" />
             <Text style={styles.depositButtonText}>Depositar</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -366,7 +366,7 @@ const SavingsScreen: React.FC = () => {
         {/* Card Bônus por Tempo */}
         <View style={styles.bonusCard}>
           <View style={styles.bonusHeader}>
-            <MaterialCommunityIcons name="clock-outline" size={24} color="#FFC107" />
+            <MaterialCommunityIcons name="clock-outline" size={24} color={GREEN_THEME.primary} />
             <Text style={styles.bonusTitle}>Bonus por Tempo</Text>
           </View>
           <Text style={styles.bonusSubtitle}>
@@ -374,12 +374,12 @@ const SavingsScreen: React.FC = () => {
           </Text>
           <View style={styles.bonusCardsRow}>
             <View style={[styles.bonusMilestone, getDaysSaved() >= 7 && styles.bonusMilestoneActive]}>
-              <MaterialCommunityIcons name="bullseye-arrow" size={28} color="#E91E63" />
+              <MaterialCommunityIcons name="bullseye-arrow" size={28} color={GREEN_THEME.primary} />
               <Text style={styles.bonusDays}>7 dias</Text>
               <Text style={styles.bonusPercent}>+2%</Text>
             </View>
             <View style={[styles.bonusMilestone, getDaysSaved() >= 30 && styles.bonusMilestoneActive]}>
-              <MaterialCommunityIcons name="bullseye-arrow" size={28} color="#E91E63" />
+              <MaterialCommunityIcons name="bullseye-arrow" size={28} color={GREEN_THEME.primary} />
               <Text style={styles.bonusDays}>30 dias</Text>
               <Text style={styles.bonusPercent}>+10%</Text>
             </View>
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: GREEN_THEME.dark,
     paddingVertical: 14,
     borderRadius: 24,
     gap: 8,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   depositButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.child.primary,
+    color: '#fff',
   },
   withdrawButton: {
     flex: 1,
@@ -875,14 +875,14 @@ const styles = StyleSheet.create({
   },
   bonusMilestone: {
     flex: 1,
-    backgroundColor: '#FCE4EC',
+    backgroundColor: GREEN_THEME.light,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
   },
   bonusMilestoneActive: {
     borderWidth: 2,
-    borderColor: '#E91E63',
+    borderColor: GREEN_THEME.dark,
   },
   bonusDays: {
     fontSize: 16,
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
   },
   bonusPercent: {
     fontSize: 14,
-    color: '#E91E63',
+    color: GREEN_THEME.dark,
     fontWeight: '600',
     marginTop: 4,
   },
