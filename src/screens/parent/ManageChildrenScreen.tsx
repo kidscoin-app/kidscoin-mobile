@@ -336,19 +336,6 @@ const ManageChildrenScreen: React.FC = () => {
         />
 
         <TextInput
-          value={username}
-          onChangeText={(text) => setUsername(text.toLowerCase())}
-          mode="outlined"
-          autoCapitalize="none"
-          style={styles.input}
-          placeholder="Username"
-          left={<TextInput.Icon icon="at" />}
-          outlineColor={COLORS.common.border}
-          activeOutlineColor={COLORS.parent.primary}
-          outlineStyle={styles.inputOutline}
-        />
-
-        <TextInput
           value={age}
           onChangeText={setAge}
           mode="outlined"
@@ -357,6 +344,19 @@ const ManageChildrenScreen: React.FC = () => {
           style={styles.input}
           placeholder="Idade"
           left={<TextInput.Icon icon="calendar-outline" />}
+          outlineColor={COLORS.common.border}
+          activeOutlineColor={COLORS.parent.primary}
+          outlineStyle={styles.inputOutline}
+        />
+
+        <TextInput
+          value={username}
+          onChangeText={(text) => setUsername(text.toLowerCase())}
+          mode="outlined"
+          autoCapitalize="none"
+          style={styles.input}
+          placeholder="Username"
+          left={<TextInput.Icon icon="at" />}
           outlineColor={COLORS.common.border}
           activeOutlineColor={COLORS.parent.primary}
           outlineStyle={styles.inputOutline}
