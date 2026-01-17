@@ -9,6 +9,8 @@ import {
   View,
   TouchableOpacity,
   ScrollView as HorizontalScroll,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import { Chip, Snackbar, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,6 +18,8 @@ import { getErrorMessage } from '../../services';
 import { TaskCategory } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { useTasks, useCompleteTask, useRetryTask, useRefreshOnFocus } from '../../hooks';
+
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 // Categorias disponiveis com icones
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
@@ -161,116 +165,123 @@ const ChildTasksScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.child.primary} />
+
+      {/* Header Fixo */}
       <View style={styles.header}>
-        <View style={styles.headerSummary}>
-          <Text style={styles.summaryLabel}>Voce tem</Text>
-          <Text style={styles.summaryCount}>{pendingCount}</Text>
-          <Text style={styles.summaryLabel}>tarefas para fazer!</Text>
+        {/* Titulo e Contador */}
+        <Text style={styles.headerTitle}>Minhas Tarefas</Text>
+
+        <View style={styles.headerStats}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconCircle}>
+              <MaterialCommunityIcons name="clipboard-list-outline" size={24} color={COLORS.child.primary} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{pendingCount}</Text>
+              <Text style={styles.statLabel}>para fazer</Text>
+            </View>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconCircle}>
+              <MaterialCommunityIcons name="check-circle-outline" size={24} color={COLORS.child.primary} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{tasks.filter(t => t.status === 'APPROVED').length}</Text>
+              <Text style={styles.statLabel}>concluidas</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Filtros de Status - Botões segmentados */}
+        <View style={styles.statusFiltersContainer}>
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[styles.segmentButton, statusFilter === 'all' && styles.segmentButtonActive]}
+              onPress={() => setStatusFilter('all')}
+            >
+              <Text style={[styles.segmentText, statusFilter === 'all' && styles.segmentTextActive]}>
+                Todas
+              </Text>
+              <View style={[styles.segmentBadge, statusFilter === 'all' && styles.segmentBadgeActive]}>
+                <Text style={[styles.segmentBadgeText, statusFilter === 'all' && styles.segmentBadgeTextActive]}>
+                  {tasks.length}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segmentButton, statusFilter === 'PENDING' && styles.segmentButtonActive]}
+              onPress={() => setStatusFilter('PENDING')}
+            >
+              <Text style={[styles.segmentText, statusFilter === 'PENDING' && styles.segmentTextActive]}>
+                Fazer
+              </Text>
+              <View style={[styles.segmentBadge, statusFilter === 'PENDING' && styles.segmentBadgeActive]}>
+                <Text style={[styles.segmentBadgeText, statusFilter === 'PENDING' && styles.segmentBadgeTextActive]}>
+                  {pendingCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segmentButton, statusFilter === 'REJECTED' && styles.segmentButtonActive]}
+              onPress={() => setStatusFilter('REJECTED')}
+            >
+              <Text style={[styles.segmentText, statusFilter === 'REJECTED' && styles.segmentTextActive]}>
+                Recusadas
+              </Text>
+              <View style={[styles.segmentBadge, statusFilter === 'REJECTED' && styles.segmentBadgeActive]}>
+                <Text style={[styles.segmentBadgeText, statusFilter === 'REJECTED' && styles.segmentBadgeTextActive]}>
+                  {rejectedCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Filtros de Status */}
-      <View style={styles.statusFiltersContainer}>
-        <HorizontalScroll
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statusFilters}
-        >
-          <Chip
-            selected={statusFilter === 'all'}
-            onPress={() => setStatusFilter('all')}
-            style={[styles.statusChip, statusFilter === 'all' && styles.statusChipSelected]}
-            textStyle={[styles.statusChipText, statusFilter === 'all' && styles.statusChipTextSelected]}
-            showSelectedOverlay={false}
-            icon={() => (
-              <MaterialCommunityIcons
-                name="format-list-bulleted"
-                size={16}
-                color={statusFilter === 'all' ? '#fff' : COLORS.common.textLight}
-              />
-            )}
-          >
-            Todas {tasks.length}
-          </Chip>
-          <Chip
-            selected={statusFilter === 'PENDING'}
-            onPress={() => setStatusFilter('PENDING')}
-            style={[styles.statusChip, statusFilter === 'PENDING' && styles.statusChipSelectedPending]}
-            textStyle={[styles.statusChipText, statusFilter === 'PENDING' && styles.statusChipTextSelected]}
-            showSelectedOverlay={false}
-            icon={() => (
-              <MaterialCommunityIcons
-                name="star-outline"
-                size={16}
-                color={statusFilter === 'PENDING' ? '#fff' : COLORS.common.textLight}
-              />
-            )}
-          >
-            Fazer {pendingCount}
-          </Chip>
-          <Chip
-            selected={statusFilter === 'REJECTED'}
-            onPress={() => setStatusFilter('REJECTED')}
-            style={[styles.statusChip, statusFilter === 'REJECTED' && styles.statusChipSelectedRejected]}
-            textStyle={[styles.statusChipText, statusFilter === 'REJECTED' && styles.statusChipTextSelected]}
-            showSelectedOverlay={false}
-            icon={() => (
-              <MaterialCommunityIcons
-                name="clock-outline"
-                size={16}
-                color={statusFilter === 'REJECTED' ? '#fff' : COLORS.common.textLight}
-              />
-            )}
-          >
-            Recusadas {rejectedCount}
-          </Chip>
-        </HorizontalScroll>
-      </View>
-
-      {/* Filtro de Categoria */}
-      <View style={styles.categoryFilterContainer}>
+      {/* Filtro de Categoria - Fora do header */}
+      <View style={styles.categorySection}>
+        <Text style={styles.categorySectionTitle}>Categoria</Text>
         <HorizontalScroll
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryFilters}
         >
-          <Chip
-            selected={categoryFilter === null}
+          <TouchableOpacity
+            style={[styles.categoryButton, categoryFilter === null && styles.categoryButtonSelected]}
             onPress={() => setCategoryFilter(null)}
-            style={[styles.categoryChip, categoryFilter === null && styles.categoryChipSelected]}
-            textStyle={[styles.categoryChipText, categoryFilter === null && styles.categoryChipTextSelected]}
-            showSelectedOverlay={false}
-            icon={() => (
-              <MaterialCommunityIcons
-                name="star-four-points"
-                size={16}
-                color={categoryFilter === null ? '#fff' : COLORS.common.textLight}
-              />
-            )}
           >
-            Todas
-          </Chip>
+            <MaterialCommunityIcons
+              name="star-four-points"
+              size={16}
+              color={categoryFilter === null ? '#fff' : COLORS.child.primary}
+            />
+            <Text style={[styles.categoryButtonText, categoryFilter === null && styles.categoryButtonTextSelected]}>
+              Todas
+            </Text>
+          </TouchableOpacity>
           {CATEGORIES.map((cat) => {
             const isSelected = categoryFilter === cat.value;
             return (
-              <Chip
+              <TouchableOpacity
                 key={cat.value}
-                selected={isSelected}
+                style={[styles.categoryButton, isSelected && styles.categoryButtonSelected]}
                 onPress={() => setCategoryFilter(cat.value)}
-                style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                textStyle={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-                showSelectedOverlay={false}
-                icon={() => (
-                  <MaterialCommunityIcons
-                    name={cat.icon as any}
-                    size={16}
-                    color={isSelected ? '#fff' : COLORS.common.textLight}
-                  />
-                )}
               >
-                {cat.label}
-              </Chip>
+                <MaterialCommunityIcons
+                  name={cat.icon as any}
+                  size={16}
+                  color={isSelected ? '#fff' : COLORS.child.primary}
+                />
+                <Text style={[styles.categoryButtonText, isSelected && styles.categoryButtonTextSelected]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
             );
           })}
         </HorizontalScroll>
@@ -445,76 +456,145 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.child.primary,
-    paddingTop: 16,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  headerSummary: {
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  headerStats: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 16,
   },
-  summaryLabel: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
-  summaryCount: {
-    fontSize: 36,
+  statIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
   },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 12,
+  },
   statusFiltersContainer: {
-    paddingVertical: 12,
-    backgroundColor: COLORS.common.white,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  statusFilters: {
-    paddingHorizontal: 16,
-    gap: 8,
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    padding: 4,
   },
-  statusChip: {
-    backgroundColor: '#F5E6E0',
-    marginRight: 8,
+  segmentButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    gap: 6,
   },
-  statusChipSelected: {
-    backgroundColor: COLORS.child.primary,
+  segmentButtonActive: {
+    backgroundColor: '#fff',
   },
-  statusChipSelectedPending: {
-    backgroundColor: COLORS.child.primary,
-  },
-  statusChipSelectedRejected: {
-    backgroundColor: '#FFCDD2',
-  },
-  statusChipText: {
-    color: COLORS.common.text,
+  segmentText: {
     fontSize: 13,
-  },
-  statusChipTextSelected: {
-    color: '#fff',
     fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
   },
-  categoryFilterContainer: {
-    paddingBottom: 12,
+  segmentTextActive: {
+    color: COLORS.child.primary,
+  },
+  segmentBadge: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  segmentBadgeActive: {
+    backgroundColor: COLORS.child.primary,
+  },
+  segmentBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  segmentBadgeTextActive: {
+    color: '#fff',
+  },
+  categorySection: {
     backgroundColor: COLORS.common.white,
+    paddingVertical: 10,
+  },
+  categorySectionTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.common.textLight,
+    marginLeft: 20,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   categoryFilters: {
     paddingHorizontal: 16,
     gap: 8,
   },
-  categoryChip: {
-    backgroundColor: '#F5F5F5',
-    marginRight: 8,
+  categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E5F5',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    gap: 6,
   },
-  categoryChipSelected: {
+  categoryButtonSelected: {
     backgroundColor: COLORS.child.primary,
   },
-  categoryChipText: {
-    color: COLORS.common.text,
+  categoryButtonText: {
     fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.child.primary,
   },
-  categoryChipTextSelected: {
+  categoryButtonTextSelected: {
     color: '#fff',
-    fontWeight: '600',
   },
   taskList: {
     flex: 1,

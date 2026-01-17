@@ -53,6 +53,7 @@ const ChildNavigator: React.FC = () => {
         component={ChildTasksScreen}
         options={{
           title: 'Tarefas',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="clipboard-list" size={size} color={color} />
           ),
