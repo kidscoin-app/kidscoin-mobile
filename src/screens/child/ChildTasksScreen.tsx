@@ -1,34 +1,42 @@
 /**
- * Tela de tarefas da criança
+ * Tela de tarefas da crianca
  * Migrado para React Query
  */
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
 import {
-  Button,
-  Card,
-  Chip,
-  SegmentedButtons,
-  Snackbar,
-  Text,
-} from 'react-native-paper';
+  ScrollView,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  ScrollView as HorizontalScroll,
+} from 'react-native';
+import { Chip, Snackbar, Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getErrorMessage } from '../../services';
-import { AssignmentStatus, TaskCategory } from '../../types';
+import { TaskCategory } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { useTasks, useCompleteTask, useRetryTask } from '../../hooks';
 
-// Categorias disponíveis
+// Categorias disponiveis com icones
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom' },
-  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant' },
-  { value: 'ESTUDOS', label: 'Estudos', icon: 'book-open' },
+  { value: 'ORGANIZACAO', label: 'Organizacao', icon: 'package-variant' },
+  { value: 'ESTUDOS', label: 'Estudo', icon: 'book-open-variant' },
   { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart' },
-  { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal' },
+  { value: 'OUTRAS', label: 'Outras', icon: 'star-four-points' },
 ];
+
+// Funcao para obter icone da categoria
+const getCategoryIcon = (category: TaskCategory): string => {
+  const found = CATEGORIES.find((c) => c.value === category);
+  return found?.icon || 'star-four-points';
+};
+
+type StatusFilter = 'all' | 'PENDING' | 'REJECTED';
 
 const ChildTasksScreen: React.FC = () => {
   // UI State
-  const [filter, setFilter] = useState<'all' | AssignmentStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -38,7 +46,7 @@ const ChildTasksScreen: React.FC = () => {
 
   const completeTask = useCompleteTask({
     onSuccess: () => {
-      setSuccess('Tarefa concluída! Aguarde a aprovação do responsável.');
+      setSuccess('Tarefa concluida! Aguarde a aprovacao do responsavel.');
     },
     onError: (err) => {
       setError(getErrorMessage(err));
@@ -47,20 +55,29 @@ const ChildTasksScreen: React.FC = () => {
 
   const retryTask = useRetryTask({
     onSuccess: () => {
-      setSuccess('Tarefa pronta para refazer! Mostre que você consegue! 💪');
+      setSuccess('Tarefa pronta para refazer! Mostre que voce consegue!');
     },
     onError: (err) => {
       setError(getErrorMessage(err));
     },
   });
 
+  // Contadores
+  const pendingCount = useMemo(() => {
+    return tasks.filter((t) => t.status === 'PENDING').length;
+  }, [tasks]);
+
+  const rejectedCount = useMemo(() => {
+    return tasks.filter((t) => t.status === 'REJECTED').length;
+  }, [tasks]);
+
   // Filtragem de tarefas
   const filteredTasks = useMemo(() => {
     let result = tasks;
 
     // Filtrar por status
-    if (filter !== 'all') {
-      result = result.filter((t) => t.status === filter);
+    if (statusFilter !== 'all') {
+      result = result.filter((t) => t.status === statusFilter);
     }
 
     // Filtrar por categoria
@@ -69,7 +86,7 @@ const ChildTasksScreen: React.FC = () => {
     }
 
     return result;
-  }, [tasks, filter, categoryFilter]);
+  }, [tasks, statusFilter, categoryFilter]);
 
   /**
    * Completar tarefa
@@ -86,32 +103,32 @@ const ChildTasksScreen: React.FC = () => {
   };
 
   /**
-   * Obter emoji da categoria
-   */
-  const getCategoryEmoji = (category: string) => {
-    switch (category) {
-      case 'LIMPEZA':
-        return '🧹';
-      case 'ORGANIZACAO':
-        return '📦';
-      case 'ESTUDOS':
-        return '📚';
-      case 'CUIDADOS':
-        return '❤️';
-      default:
-        return '✨';
-    }
-  };
-
-  /**
    * Obter cor do status
    */
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return COLORS.child.warning;
+        return '#FFE4C4';
       case 'COMPLETED':
-        return COLORS.child.primary;
+        return '#E8F5E9';
+      case 'APPROVED':
+        return '#E8F5E9';
+      case 'REJECTED':
+        return '#FFEBEE';
+      default:
+        return '#F5F5F5';
+    }
+  };
+
+  /**
+   * Obter cor do texto do status
+   */
+  const getStatusTextColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return '#E67E22';
+      case 'COMPLETED':
+        return COLORS.child.success;
       case 'APPROVED':
         return COLORS.child.success;
       case 'REJECTED':
@@ -127,215 +144,273 @@ const ChildTasksScreen: React.FC = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return '⏳ Fazer';
+        return 'Fazer';
       case 'COMPLETED':
-        return '⏰ Revisando';
+        return 'Revisando';
       case 'APPROVED':
-        return '✅ Aprovada';
+        return 'Aprovada';
       case 'REJECTED':
-        return '❌ Rejeitada';
+        return 'Recusada';
       default:
         return status;
     }
   };
 
-  /**
-   * Contar tarefas por status
-   */
-  const countByStatus = (status: AssignmentStatus) => {
-    return tasks.filter((t) => t.status === status).length;
-  };
-
   return (
     <View style={styles.container}>
-      {/* Filtros */}
-      <View style={styles.filterContainer}>
-        <SegmentedButtons
-          value={filter}
-          onValueChange={(value) => setFilter(value as any)}
-          density="small"
-          buttons={[
-            {
-              value: 'all',
-              label: `Todas (${tasks.length})`,
-              style: styles.segmentButton,
-            },
-            {
-              value: 'PENDING',
-              label: `Fazer (${countByStatus('PENDING')})`,
-              style: styles.segmentButton,
-            },
-            {
-              value: 'COMPLETED',
-              label: `Revisando (${countByStatus('COMPLETED')})`,
-              style: styles.segmentButton,
-            },
-          ]}
-        />
-
-        {/* Filtro de categoria */}
-        <Text style={styles.filterLabel}>Categoria</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScrollView}
-        >
-          <View style={styles.categoryChips}>
-            <Chip
-              selected={categoryFilter === null}
-              onPress={() => setCategoryFilter(null)}
-              style={[
-                styles.chip,
-                categoryFilter === null && styles.chipSelected,
-              ]}
-              mode={categoryFilter === null ? 'flat' : 'outlined'}
-              textStyle={
-                categoryFilter === null
-                  ? styles.chipTextSelected
-                  : styles.chipTextUnselected
-              }
-            >
-              Todas
-            </Chip>
-            {CATEGORIES.map((cat) => {
-              const isSelected = categoryFilter === cat.value;
-              return (
-                <Chip
-                  key={cat.value}
-                  selected={isSelected}
-                  onPress={() => setCategoryFilter(cat.value)}
-                  style={[styles.chip, isSelected && styles.chipSelected]}
-                  icon={cat.icon}
-                  mode={isSelected ? 'flat' : 'outlined'}
-                  textStyle={
-                    isSelected
-                      ? styles.chipTextSelected
-                      : styles.chipTextUnselected
-                  }
-                >
-                  {cat.label}
-                </Chip>
-              );
-            })}
-          </View>
-        </ScrollView>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerSummary}>
+          <Text style={styles.summaryLabel}>Voce tem</Text>
+          <Text style={styles.summaryCount}>{pendingCount}</Text>
+          <Text style={styles.summaryLabel}>tarefas para fazer!</Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.content}>
+      {/* Filtros de Status */}
+      <View style={styles.statusFiltersContainer}>
+        <HorizontalScroll
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statusFilters}
+        >
+          <Chip
+            selected={statusFilter === 'all'}
+            onPress={() => setStatusFilter('all')}
+            style={[styles.statusChip, statusFilter === 'all' && styles.statusChipSelected]}
+            textStyle={[styles.statusChipText, statusFilter === 'all' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+            icon={() => (
+              <MaterialCommunityIcons
+                name="format-list-bulleted"
+                size={16}
+                color={statusFilter === 'all' ? '#fff' : COLORS.common.textLight}
+              />
+            )}
+          >
+            Todas {tasks.length}
+          </Chip>
+          <Chip
+            selected={statusFilter === 'PENDING'}
+            onPress={() => setStatusFilter('PENDING')}
+            style={[styles.statusChip, statusFilter === 'PENDING' && styles.statusChipSelectedPending]}
+            textStyle={[styles.statusChipText, statusFilter === 'PENDING' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+            icon={() => (
+              <MaterialCommunityIcons
+                name="star-outline"
+                size={16}
+                color={statusFilter === 'PENDING' ? '#fff' : COLORS.common.textLight}
+              />
+            )}
+          >
+            Fazer {pendingCount}
+          </Chip>
+          <Chip
+            selected={statusFilter === 'REJECTED'}
+            onPress={() => setStatusFilter('REJECTED')}
+            style={[styles.statusChip, statusFilter === 'REJECTED' && styles.statusChipSelectedRejected]}
+            textStyle={[styles.statusChipText, statusFilter === 'REJECTED' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+            icon={() => (
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={16}
+                color={statusFilter === 'REJECTED' ? '#fff' : COLORS.common.textLight}
+              />
+            )}
+          >
+            Recusadas {rejectedCount}
+          </Chip>
+        </HorizontalScroll>
+      </View>
+
+      {/* Filtro de Categoria */}
+      <View style={styles.categoryFilterContainer}>
+        <HorizontalScroll
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilters}
+        >
+          <Chip
+            selected={categoryFilter === null}
+            onPress={() => setCategoryFilter(null)}
+            style={[styles.categoryChip, categoryFilter === null && styles.categoryChipSelected]}
+            textStyle={[styles.categoryChipText, categoryFilter === null && styles.categoryChipTextSelected]}
+            showSelectedOverlay={false}
+            icon={() => (
+              <MaterialCommunityIcons
+                name="star-four-points"
+                size={16}
+                color={categoryFilter === null ? '#fff' : COLORS.common.textLight}
+              />
+            )}
+          >
+            Todas
+          </Chip>
+          {CATEGORIES.map((cat) => {
+            const isSelected = categoryFilter === cat.value;
+            return (
+              <Chip
+                key={cat.value}
+                selected={isSelected}
+                onPress={() => setCategoryFilter(cat.value)}
+                style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                textStyle={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
+                showSelectedOverlay={false}
+                icon={() => (
+                  <MaterialCommunityIcons
+                    name={cat.icon as any}
+                    size={16}
+                    color={isSelected ? '#fff' : COLORS.common.textLight}
+                  />
+                )}
+              >
+                {cat.label}
+              </Chip>
+            );
+          })}
+        </HorizontalScroll>
+      </View>
+
+      {/* Lista de Tarefas */}
+      <ScrollView style={styles.taskList} contentContainerStyle={styles.taskListContent}>
         {loading ? (
-          <Text style={styles.emptyText}>Carregando suas tarefas...</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Carregando suas tarefas...</Text>
+          </View>
         ) : filteredTasks.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Card.Content>
-              <Text style={styles.emptyTitle}>
-                {filter === 'PENDING'
-                  ? '🎉 Parabéns!'
-                  : filter === 'COMPLETED'
-                  ? '⏰ Aguardando aprovação'
-                  : '📋 Nenhuma tarefa'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {filter === 'PENDING'
-                  ? 'Você não tem tarefas pendentes!'
-                  : filter === 'COMPLETED'
-                  ? 'Nenhuma tarefa aguardando aprovação.'
-                  : 'Você ainda não tem tarefas atribuídas.'}
-              </Text>
-            </Card.Content>
-          </Card>
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons
+              name={statusFilter === 'PENDING' ? 'party-popper' : 'clipboard-text-outline'}
+              size={48}
+              color={COLORS.common.textLight}
+            />
+            <Text style={styles.emptyTitle}>
+              {statusFilter === 'PENDING' ? 'Parabens!' : 'Nenhuma tarefa'}
+            </Text>
+            <Text style={styles.emptyText}>
+              {statusFilter === 'PENDING'
+                ? 'Voce nao tem tarefas pendentes!'
+                : statusFilter === 'REJECTED'
+                ? 'Nenhuma tarefa recusada.'
+                : 'Voce ainda nao tem tarefas.'}
+            </Text>
+          </View>
         ) : (
-          <View style={styles.tasksList}>
-            {filteredTasks.map((assignment) => (
-              <Card key={assignment.id} style={styles.taskCard}>
-                <Card.Content>
-                  {/* Cabeçalho */}
-                  <View style={styles.taskHeader}>
-                    <Text style={styles.taskEmoji}>
-                      {getCategoryEmoji(assignment.task.category)}
+          filteredTasks.map((assignment) => (
+            <View key={assignment.id} style={styles.taskCard}>
+              {/* Header do Card */}
+              <View style={styles.taskCardHeader}>
+                {/* Icone da Categoria */}
+                <View style={styles.taskIconContainer}>
+                  <MaterialCommunityIcons
+                    name={getCategoryIcon(assignment.task.category) as any}
+                    size={28}
+                    color={COLORS.child.primary}
+                  />
+                </View>
+
+                {/* Info */}
+                <View style={styles.taskInfo}>
+                  <View style={styles.taskTitleRow}>
+                    <Text style={styles.taskTitle} numberOfLines={1}>
+                      {assignment.task.title}
                     </Text>
-                    <Chip
+                    <View
                       style={[
-                        styles.statusChip,
+                        styles.taskStatusBadge,
                         { backgroundColor: getStatusColor(assignment.status) },
                       ]}
-                      textStyle={styles.statusText}
                     >
-                      {getStatusText(assignment.status)}
-                    </Chip>
+                      <Text
+                        style={[
+                          styles.taskStatusText,
+                          { color: getStatusTextColor(assignment.status) },
+                        ]}
+                      >
+                        {getStatusText(assignment.status)}
+                      </Text>
+                    </View>
                   </View>
 
-                  {/* Título */}
-                  <Text style={styles.taskTitle}>{assignment.task.title}</Text>
-
-                  {/* Descrição */}
+                  {/* Descricao */}
                   {assignment.task.description && (
-                    <Text style={styles.taskDescription}>
+                    <Text style={styles.taskDescription} numberOfLines={1}>
                       {assignment.task.description}
                     </Text>
                   )}
 
-                  {/* Recompensa */}
-                  <View style={styles.rewardContainer}>
-                    <View style={styles.rewardItem}>
-                      <Text style={styles.rewardValue}>
-                        {assignment.task.coinValue}
-                      </Text>
-                      <Text style={styles.rewardLabel}>💰 moedas</Text>
+                  {/* Valores */}
+                  <View style={styles.taskValues}>
+                    <View style={styles.taskValueItem}>
+                      <MaterialCommunityIcons name="hand-coin" size={16} color="#4CAF50" />
+                      <Text style={styles.taskValueText}>+{assignment.task.coinValue}</Text>
                     </View>
-                    <View style={styles.rewardItem}>
-                      <Text style={styles.rewardValue}>
-                        {assignment.task.xpValue}
-                      </Text>
-                      <Text style={styles.rewardLabel}>⭐ XP</Text>
+                    <View style={styles.taskValueItem}>
+                      <MaterialCommunityIcons name="star" size={16} color="#FFC107" />
+                      <Text style={styles.taskValueText}>+{assignment.task.xpValue} XP</Text>
                     </View>
                   </View>
+                </View>
+              </View>
 
-                  {/* Botão de ação */}
-                  {assignment.status === 'PENDING' && (
-                    <Button
-                      mode="contained"
-                      onPress={() => handleComplete(assignment.id)}
-                      style={styles.completeButton}
-                      buttonColor={COLORS.child.primary}
-                      icon="check-circle"
-                      loading={completeTask.isPending}
-                      disabled={completeTask.isPending}
-                    >
-                      Marcar como Concluída
-                    </Button>
-                  )}
+              {/* Botao de Acao */}
+              {assignment.status === 'PENDING' && (
+                <TouchableOpacity
+                  style={styles.completeButton}
+                  onPress={() => handleComplete(assignment.id)}
+                  disabled={completeTask.isPending}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                  <Text style={styles.completeButtonText}>
+                    {completeTask.isPending ? 'Enviando...' : 'Completei!'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-                  {/* Motivo da rejeição */}
-                  {assignment.status === 'REJECTED' &&
-                    assignment.rejectionReason && (
-                      <View style={styles.rejectionContainer}>
-                        <Text style={styles.rejectionTitle}>
-                          Por que foi rejeitada?
-                        </Text>
-                        <Text style={styles.rejectionText}>
-                          {assignment.rejectionReason}
-                        </Text>
-                        <Text style={styles.rejectionHint}>
-                          💡 Leia o feedback e tente novamente!
-                        </Text>
-                        <Button
-                          mode="contained"
-                          onPress={() => handleRetry(assignment.id)}
-                          style={styles.retryButton}
-                          buttonColor={COLORS.child.secondary}
-                          icon="refresh"
-                          loading={retryTask.isPending}
-                          disabled={retryTask.isPending}
-                        >
-                          Refazer Tarefa
-                        </Button>
-                      </View>
-                    )}
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
+              {/* Motivo da Rejeicao */}
+              {assignment.status === 'REJECTED' && assignment.rejectionReason && (
+                <View style={styles.rejectionContainer}>
+                  <View style={styles.rejectionHeader}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.common.error} />
+                    <Text style={styles.rejectionTitle}>Por que foi recusada?</Text>
+                  </View>
+                  <Text style={styles.rejectionText}>{assignment.rejectionReason}</Text>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={() => handleRetry(assignment.id)}
+                    disabled={retryTask.isPending}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="refresh" size={18} color="#fff" />
+                    <Text style={styles.retryButtonText}>
+                      {retryTask.isPending ? 'Enviando...' : 'Tentar de Novo'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Status Revisando */}
+              {assignment.status === 'COMPLETED' && (
+                <View style={styles.reviewingContainer}>
+                  <MaterialCommunityIcons name="clock-outline" size={16} color={COLORS.child.primary} />
+                  <Text style={styles.reviewingText}>Aguardando aprovacao do responsavel...</Text>
+                </View>
+              )}
+
+              {/* Status Aprovada */}
+              {assignment.status === 'APPROVED' && (
+                <View style={styles.approvedContainer}>
+                  <MaterialCommunityIcons name="check-circle" size={16} color={COLORS.child.success} />
+                  <Text style={styles.approvedText}>Tarefa aprovada! Moedas e XP recebidos!</Text>
+                </View>
+              )}
+            </View>
+          ))
         )}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       {/* Snackbars */}
@@ -363,156 +438,254 @@ const ChildTasksScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.child.background,
-  },
-  filterContainer: {
-    padding: 15,
     backgroundColor: COLORS.common.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.common.border,
   },
-  segmentButton: {
-    minHeight: 40,
-  },
-  filterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.common.textLight,
-    marginTop: 15,
-    marginBottom: 8,
-  },
-  categoryScrollView: {
-    marginBottom: 0,
-  },
-  categoryChips: {
-    flexDirection: 'row',
-  },
-  chip: {
-    marginRight: 8,
-  },
-  chipSelected: {
+  header: {
     backgroundColor: COLORS.child.primary,
+    paddingTop: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
   },
-  chipTextSelected: {
-    color: COLORS.common.white,
-    fontWeight: '600',
-  },
-  chipTextUnselected: {
-    color: COLORS.common.text,
-  },
-  content: {
-    flex: 1,
-  },
-  tasksList: {
-    padding: 15,
-  },
-  taskCard: {
-    marginBottom: 15,
-    backgroundColor: COLORS.common.white,
-    elevation: 2,
-  },
-  taskHeader: {
+  headerSummary: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 6,
   },
-  taskEmoji: {
-    fontSize: 32,
+  summaryLabel: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  summaryCount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  statusFiltersContainer: {
+    paddingVertical: 12,
+    backgroundColor: COLORS.common.white,
+  },
+  statusFilters: {
+    paddingHorizontal: 16,
+    gap: 8,
   },
   statusChip: {
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#F5E6E0',
+    marginRight: 8,
   },
-  statusText: {
-    fontSize: 12,
-    color: COLORS.common.white,
-    fontWeight: '600',
-    lineHeight: 14,
-    marginVertical: 0,
+  statusChipSelected: {
+    backgroundColor: COLORS.child.primary,
   },
-  taskTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  statusChipSelectedPending: {
+    backgroundColor: COLORS.child.primary,
+  },
+  statusChipSelectedRejected: {
+    backgroundColor: '#FFCDD2',
+  },
+  statusChipText: {
     color: COLORS.common.text,
-    marginBottom: 8,
-  },
-  taskDescription: {
-    fontSize: 14,
-    color: COLORS.common.textLight,
-    marginBottom: 15,
-    lineHeight: 20,
-  },
-  rewardContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.child.background,
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-  },
-  rewardItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  rewardValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.child.primary,
-    marginBottom: 4,
-  },
-  rewardLabel: {
-    fontSize: 12,
-    color: COLORS.common.textLight,
-    fontWeight: '600',
-  },
-  completeButton: {
-    marginTop: 5,
-  },
-  retryButton: {
-    marginTop: 12,
-  },
-  rejectionContainer: {
-    backgroundColor: '#FFF5F5',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.common.error,
-  },
-  rejectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.common.error,
-    marginBottom: 6,
-  },
-  rejectionText: {
     fontSize: 13,
-    color: COLORS.common.text,
-    marginBottom: 8,
-    lineHeight: 18,
   },
-  rejectionHint: {
-    fontSize: 12,
-    color: COLORS.common.textLight,
-    fontStyle: 'italic',
+  statusChipTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
   },
-  emptyCard: {
-    margin: 15,
+  categoryFilterContainer: {
+    paddingBottom: 12,
     backgroundColor: COLORS.common.white,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  categoryFilters: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+  },
+  categoryChipSelected: {
+    backgroundColor: COLORS.child.primary,
+  },
+  categoryChipText: {
     color: COLORS.common.text,
-    textAlign: 'center',
-    marginBottom: 10,
+    fontSize: 13,
+  },
+  categoryChipTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  taskList: {
+    flex: 1,
+  },
+  taskListContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.common.text,
   },
   emptyText: {
     fontSize: 14,
     color: COLORS.common.textLight,
     textAlign: 'center',
-    lineHeight: 20,
+  },
+  taskCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  taskCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  taskIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#F3E5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  taskInfo: {
+    flex: 1,
+  },
+  taskTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+    gap: 8,
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.common.text,
+    flex: 1,
+  },
+  taskStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  taskStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    marginBottom: 8,
+  },
+  taskValues: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  taskValueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  taskValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.common.text,
+  },
+  completeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.child.success,
+    paddingVertical: 14,
+    borderRadius: 25,
+    marginTop: 16,
+    gap: 8,
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  rejectionContainer: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+  },
+  rejectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  rejectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.common.error,
+  },
+  rejectionText: {
+    fontSize: 13,
+    color: COLORS.common.text,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.child.secondary,
+    paddingVertical: 12,
+    borderRadius: 20,
+    gap: 6,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reviewingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#F3E5F5',
+    borderRadius: 12,
+  },
+  reviewingText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.child.primary,
+  },
+  approvedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+  },
+  approvedText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.child.success,
+  },
+  bottomSpacer: {
+    height: 20,
   },
   errorSnackbar: {
     backgroundColor: COLORS.common.error,
