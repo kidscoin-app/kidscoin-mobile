@@ -73,6 +73,7 @@ const ChildNavigator: React.FC = () => {
         component={SavingsScreen}
         options={{
           title: 'Poupança',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="piggy-bank" size={size} color={color} />
           ),
