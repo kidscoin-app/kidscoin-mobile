@@ -86,7 +86,7 @@ const ChildNavigator: React.FC = () => {
         component={ProfileScreen}
         options={{
           title: 'Perfil',
-          headerShadowVisible: false,
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" size={size} color={color} />
           ),
