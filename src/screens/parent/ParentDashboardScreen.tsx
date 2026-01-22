@@ -19,6 +19,7 @@ import {
   useApproveRedemption,
   useRejectRedemption,
   useRefreshOnFocus,
+  useMarkAsRead,
 } from '../../hooks';
 import { COLORS } from '../../utils/constants';
 import NotificationsModal from '../../components/NotificationsModal';
@@ -68,6 +69,7 @@ const ParentDashboardScreen: React.FC = () => {
   const { mutate: rejectTask, isPending: rejectingTask } = useRejectTask();
   const { mutate: approveRedemption, isPending: approvingRedemption } = useApproveRedemption();
   const { mutate: rejectRedemption, isPending: rejectingRedemption } = useRejectRedemption();
+  const markAsRead = useMarkAsRead();
 
   const isProcessing = approvingTask || rejectingTask || approvingRedemption || rejectingRedemption;
 
@@ -139,16 +141,35 @@ const ParentDashboardScreen: React.FC = () => {
     setRefreshing(false);
   };
 
+  // Marcar notificacao relacionada como lida
+  const markRelatedNotificationAsRead = (actionId: string, actionType: 'task' | 'redemption') => {
+    const referenceType = actionType === 'task' ? 'TASK' : 'REWARD';
+    const notificationType = actionType === 'task' ? 'TASK_COMPLETED' : 'REDEMPTION_REQUESTED';
+
+    const relatedNotification = notifications.find(
+      n => n.referenceId === actionId &&
+           n.referenceType === referenceType &&
+           n.type === notificationType &&
+           !n.isRead
+    );
+
+    if (relatedNotification) {
+      markAsRead.mutate(relatedNotification.id);
+    }
+  };
+
   const handleApprove = (action: PendingAction) => {
     if (action.type === 'task') {
       approveTask(action.id, {
         onSuccess: () => {
+          markRelatedNotificationAsRead(action.id, 'task');
           setSnackbarMessage('Tarefa aprovada com sucesso!');
         },
       });
     } else {
       approveRedemption(action.id, {
         onSuccess: () => {
+          markRelatedNotificationAsRead(action.id, 'redemption');
           setSnackbarMessage('Resgate aprovado com sucesso!');
         },
       });
@@ -169,6 +190,7 @@ const ParentDashboardScreen: React.FC = () => {
         { assignmentId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
         {
           onSuccess: () => {
+            markRelatedNotificationAsRead(rejectingAction.id, 'task');
             setRejectDialogVisible(false);
             setRejectingAction(null);
             setRejectionReason('');
@@ -181,6 +203,7 @@ const ParentDashboardScreen: React.FC = () => {
         { redemptionId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
         {
           onSuccess: () => {
+            markRelatedNotificationAsRead(rejectingAction.id, 'redemption');
             setRejectDialogVisible(false);
             setRejectingAction(null);
             setRejectionReason('');
