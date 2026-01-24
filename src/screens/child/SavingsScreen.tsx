@@ -12,7 +12,6 @@ import {
   StyleSheet,
   View,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
   Platform,
 } from 'react-native';
@@ -21,8 +20,6 @@ import { BottomSheet } from '../../components';
 import { COLORS } from '../../utils/constants';
 import { useSavings, useWallet, useDepositSavings, useWithdrawSavings, useRefreshOnFocus } from '../../hooks';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const STAT_CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 const SAVINGS_GOAL_KEY = '@kidscoin:savingsGoal';
@@ -88,15 +85,9 @@ const SavingsScreen: React.FC = () => {
 
   const withdrawSavings = useWithdrawSavings({
     onSuccess: (_, variables) => {
-      const bonus = Math.round(variables.amount * (getTimeBonus() / 100));
       setWithdrawSheetVisible(false);
       setWithdrawAmount('');
-      showSnackbar(
-        bonus > 0
-          ? `Sacado ${variables.amount.toLocaleString('pt-BR')} + ${bonus.toLocaleString('pt-BR')} de bonus!`
-          : `${variables.amount.toLocaleString('pt-BR')} moedas sacadas!`,
-        'success'
-      );
+      showSnackbar(`${variables.amount.toLocaleString('pt-BR')} moedas sacadas!`, 'success');
     },
     onError: (error: any) => {
       showSnackbar(error.response?.data?.message || 'Erro ao sacar', 'error');
@@ -168,31 +159,6 @@ const SavingsScreen: React.FC = () => {
     return Math.round(getGoalProgress() * 100);
   };
 
-  // Calcula dias guardados (dias desde o último depósito)
-  const getDaysSaved = (): number => {
-    if (!savings?.lastDepositAt) return 0;
-    const lastDeposit = new Date(savings.lastDepositAt);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDeposit.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  // Calcula bônus por tempo
-  const getTimeBonus = (): number => {
-    const days = getDaysSaved();
-    if (days >= 30) return 10;
-    if (days >= 7) return 2;
-    return 0;
-  };
-
-  // Simula rendimento composto
-  const simulateInterest = (weeks: number): number => {
-    if (!savings) return 0;
-    const weeklyRate = 0.02; // 2%
-    return Math.round(savings.balance * Math.pow(1 + weeklyRate, weeks) - savings.balance);
-  };
-
   // Depositar
   const handleDeposit = () => {
     const amount = parseInt(depositAmount.replace(/\D/g, ''));
@@ -215,8 +181,8 @@ const SavingsScreen: React.FC = () => {
       showSnackbar('Digite um valor valido', 'error');
       return;
     }
-    if (!savings || amount > savings.balance) {
-      showSnackbar('Saldo insuficiente na poupanca', 'error');
+    if (!savings || amount > savings.availableBalance) {
+      showSnackbar('Voce nao tem moedas suficientes na poupanca', 'error');
       return;
     }
 
@@ -237,8 +203,8 @@ const SavingsScreen: React.FC = () => {
   }
 
   const balance = savings?.balance || 0;
-  const totalDeposited = savings?.totalDeposited || 0;
-  const totalEarned = savings?.totalEarned || 0;
+  const availableBalance = savings?.availableBalance || 0;
+  const pendingInterest = savings?.pendingInterest || 0;
 
   return (
     <View style={styles.container}>
@@ -246,16 +212,28 @@ const SavingsScreen: React.FC = () => {
 
       {/* Header Verde */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Minha Poupanca</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Minha Poupanca</Text>
+          {/* <MaterialCommunityIcons name="piggy-bank" size={48} color="#fff" style={styles.headerIcon} /> */}
+        </View>
+
         <View style={styles.balanceSection}>
-          <MaterialCommunityIcons name="piggy-bank" size={80} color="#fff" style={styles.piggyIcon} />
-          <View style={styles.balanceInfo}>
-            <Text style={styles.balanceLabel}>Saldo</Text>
-            <View style={styles.balanceRow}>
-              <MaterialCommunityIcons name="piggy-bank" size={28} color="#FFD54F" />
-              <Text style={styles.balanceValue}>{formatNumber(balance)}</Text>
+          <Text style={styles.balanceLabel}>Voce tem agora</Text>
+          <Text style={styles.balanceValue}>{formatNumber(availableBalance)}</Text>
+          <Text style={styles.balanceSubtext}>moedas disponiveis</Text>
+
+          {/* Detalhes do saldo */}
+          <View style={styles.balanceDetails}>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="wallet" size={18} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.balanceDetailText}>Você guardou: {formatNumber(balance)}</Text>
             </View>
-            <Text style={styles.balanceSubtext}>moedas guardadas</Text>
+            {pendingInterest > 0 && (
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="trending-up" size={18} color="#FFD54F" />
+                <Text style={styles.bonusText}>Bonus: +{formatNumber(pendingInterest)}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -287,18 +265,35 @@ const SavingsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* Cards de Estatísticas */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <MaterialCommunityIcons name="arrow-down-circle-outline" size={32} color="#333" />
-            <Text style={styles.statValue}>{formatNumber(totalDeposited)}</Text>
-            <Text style={styles.statLabel}>Depositado</Text>
-          </View>
-          <View style={styles.statCard}>
-            <MaterialCommunityIcons name="shimmer" size={32} color={GREEN_THEME.primary} />
-            <Text style={[styles.statValue, styles.statValueGreen]}>{formatNumber(totalEarned)}</Text>
-            <Text style={styles.statLabel}>Rendeu!</Text>
-          </View>
+        {/* Card de Rendimento */}
+        <View style={styles.earningsCard}>
+          {pendingInterest > 0 ? (
+            <>
+              <View style={styles.earningsHeader}>
+                <MaterialCommunityIcons name="shimmer" size={40} color={GREEN_THEME.primary} />
+                <View style={styles.earningsInfo}>
+                  <Text style={styles.earningsValue}>+{formatNumber(pendingInterest)} moedas</Text>
+                  <Text style={styles.earningsLabel}>cresceram sozinhas! 🌱</Text>
+                </View>
+              </View>
+              <Text style={styles.earningsExplanation}>
+                Das suas {formatNumber(availableBalance)} moedas, {formatNumber(pendingInterest)} foram de bonus que sua poupanca gerou!
+              </Text>
+            </>
+          ) : (
+            <>
+              <View style={styles.earningsHeader}>
+                <MaterialCommunityIcons name="sprout" size={40} color="#999" />
+                <View style={styles.earningsInfo}>
+                  <Text style={styles.earningsValueEmpty}>Ainda sem bonus</Text>
+                  <Text style={styles.earningsLabelEmpty}>Sua poupanca esta crescendo! 🌱</Text>
+                </View>
+              </View>
+              <Text style={styles.earningsExplanation}>
+                Continue guardando suas moedas e logo elas vao comecar a crescer sozinhas!
+              </Text>
+            </>
+          )}
         </View>
 
         {/* Card de Meta de Poupança */}
@@ -333,10 +328,10 @@ const SavingsScreen: React.FC = () => {
         <View style={styles.projectionCard}>
           <View style={styles.projectionHeader}>
             <MaterialCommunityIcons name="calculator-variant" size={24} color={GREEN_THEME.primary} />
-            <Text style={styles.projectionTitle}>Quanto vai render?</Text>
+            <Text style={styles.projectionTitle}>Quanto vai crescer?</Text>
           </View>
           <Text style={styles.projectionSubtitle}>
-            Sua poupanca rende <Text style={styles.projectionHighlight}>2%</Text> toda semana!
+            Suas moedas crescem <Text style={styles.projectionHighlight}>TODOS OS DIAS</Text>! E quanto mais tempo guardadas, mais rendem! 📈
           </Text>
           <View style={styles.projectionList}>
             <View style={styles.projectionItem}>
@@ -344,54 +339,67 @@ const SavingsScreen: React.FC = () => {
                 <MaterialCommunityIcons name="calendar-week" size={20} color="#666" />
                 <Text style={styles.projectionPeriod}>1 semana</Text>
               </View>
-              <Text style={styles.projectionValue}>+{formatNumber(simulateInterest(1))}</Text>
+              <Text style={styles.projectionValue}>≈ +3%</Text>
             </View>
             <View style={styles.projectionItem}>
               <View style={styles.projectionLeft}>
                 <MaterialCommunityIcons name="calendar-month" size={20} color="#666" />
                 <Text style={styles.projectionPeriod}>1 mes</Text>
               </View>
-              <Text style={styles.projectionValue}>+{formatNumber(simulateInterest(4))}</Text>
+              <Text style={styles.projectionValue}>≈ +14%</Text>
             </View>
             <View style={styles.projectionItem}>
               <View style={styles.projectionLeft}>
                 <MaterialCommunityIcons name="calendar-multiselect" size={20} color="#666" />
                 <Text style={styles.projectionPeriod}>3 meses</Text>
               </View>
-              <Text style={styles.projectionValue}>+{formatNumber(simulateInterest(12))}</Text>
+              <Text style={styles.projectionValue}>≈ +46%</Text>
             </View>
           </View>
         </View>
 
-        {/* Card Bônus por Tempo */}
+        {/* Card Como Funciona */}
         <View style={styles.bonusCard}>
           <View style={styles.bonusHeader}>
-            <MaterialCommunityIcons name="clock-outline" size={24} color={GREEN_THEME.primary} />
-            <Text style={styles.bonusTitle}>Bonus por Tempo</Text>
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={24} color={GREEN_THEME.primary} />
+            <Text style={styles.bonusTitle}>Como sua poupanca cresce?</Text>
           </View>
-          <Text style={styles.bonusSubtitle}>
-            Quanto mais tempo guardar, maior o bonus! 🎁
-          </Text>
-          <View style={styles.bonusCardsRow}>
-            <View style={[styles.bonusMilestone, getDaysSaved() >= 7 && styles.bonusMilestoneActive]}>
-              <MaterialCommunityIcons name="bullseye-arrow" size={28} color={GREEN_THEME.primary} />
-              <Text style={styles.bonusDays}>7 dias</Text>
-              <Text style={styles.bonusPercent}>+2%</Text>
+
+          {/* Rendimento Diário */}
+          <View style={styles.howItWorksItem}>
+            <View style={styles.howItWorksIcon}>
+              <MaterialCommunityIcons name="calendar-today" size={20} color={GREEN_THEME.primary} />
             </View>
-            <View style={[styles.bonusMilestone, getDaysSaved() >= 30 && styles.bonusMilestoneActive]}>
-              <MaterialCommunityIcons name="bullseye-arrow" size={28} color={GREEN_THEME.primary} />
-              <Text style={styles.bonusDays}>30 dias</Text>
-              <Text style={styles.bonusPercent}>+10%</Text>
-            </View>
-          </View>
-          <View style={styles.currentBonusCard}>
-            <MaterialCommunityIcons name="timer-sand" size={24} color="#666" />
-            <View style={styles.currentBonusInfo}>
-              <Text style={styles.currentBonusDays}>{getDaysSaved()} dia{getDaysSaved() !== 1 ? 's' : ''} guardados</Text>
-              <Text style={styles.currentBonusPercent}>
-                Bonus atual: <Text style={styles.currentBonusValue}>{getTimeBonus()}%</Text>
+            <View style={styles.howItWorksText}>
+              <Text style={styles.howItWorksTitle}>Todos os dias! 🌟</Text>
+              <Text style={styles.howItWorksDescription}>
+                Suas moedas crescem um pouquinho TODO DIA automaticamente!
               </Text>
             </View>
+          </View>
+
+          {/* Sistema Progressivo */}
+          <View style={styles.howItWorksItem}>
+            <View style={styles.howItWorksIcon}>
+              <MaterialCommunityIcons name="trending-up" size={20} color="#FF9800" />
+            </View>
+            <View style={styles.howItWorksText}>
+              <Text style={styles.howItWorksTitle}>Quanto mais tempo, mais rende! 📈</Text>
+              <Text style={styles.howItWorksDescription}>
+                Primeiros 6 dias: Rende menos{'\n'}
+                Depois de 1 semana: Rende mais!{'\n'}
+                Depois de 1 mes: Rende ainda mais!!{'\n'}
+                Depois de 3 meses: Rende MUITO MAIS!!!
+              </Text>
+            </View>
+          </View>
+
+          {/* Explicação Simples */}
+          <View style={styles.magicCard}>
+            <Text style={styles.magicEmoji}>✨</Text>
+            <Text style={styles.magicText}>
+              E o melhor: voce nao precisa fazer NADA! Suas moedas crescem sozinhas enquanto voce dorme! 😴
+            </Text>
           </View>
         </View>
 
@@ -453,15 +461,15 @@ const SavingsScreen: React.FC = () => {
         height={0.55}
       >
         <View style={styles.sheetContent}>
-          <Text style={styles.sheetLabel}>Saldo na poupanca</Text>
-          <Text style={styles.sheetBalance}>{formatNumber(balance)} moedas</Text>
+          <Text style={styles.sheetLabel}>Voce pode sacar</Text>
+          <Text style={styles.sheetBalance}>{formatNumber(availableBalance)} moedas</Text>
 
-          {getTimeBonus() > 0 && (
-            <View style={styles.bonusBadge}>
-              <MaterialCommunityIcons name="gift" size={20} color={GREEN_THEME.primary} />
-              <Text style={styles.bonusBadgeText}>Voce vai receber +{getTimeBonus()}% de bonus!</Text>
-            </View>
-          )}
+          <View style={styles.infoBox}>
+            <MaterialCommunityIcons name="information" size={20} color={GREEN_THEME.primary} />
+            <Text style={styles.infoText}>
+              Esse valor ja inclui os juros que suas moedas renderam! 💰
+            </Text>
+          </View>
 
           <TextInput
             label="Valor a sacar"
@@ -474,15 +482,6 @@ const SavingsScreen: React.FC = () => {
             activeOutlineColor="#FFC107"
             left={<TextInput.Icon icon="hand-coin" />}
           />
-
-          {withdrawAmount && parseInt(withdrawAmount.replace(/\D/g, '')) > 0 && (
-            <Text style={styles.withdrawPreview}>
-              Voce recebera: {formatNumber(
-                parseInt(withdrawAmount.replace(/\D/g, '')) +
-                Math.round(parseInt(withdrawAmount.replace(/\D/g, '')) * (getTimeBonus() / 100))
-              )} moedas
-            </Text>
-          )}
 
           <TouchableOpacity
             style={[styles.sheetButton, styles.withdrawSheetButton]}
@@ -585,44 +584,65 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 20,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    textAlign: 'center',
-    marginBottom: 16,
+  },
+  headerIcon: {
+    opacity: 0.95,
   },
   balanceSection: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  piggyIcon: {
-    marginRight: 16,
-    opacity: 0.9,
-  },
-  balanceInfo: {
-    alignItems: 'flex-start',
   },
   balanceLabel: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 4,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  balanceRow: {
+  balanceValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  balanceSubtext: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  balanceDetails: {
+    marginTop: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
-  balanceValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  balanceSubtext: {
+  balanceDetailText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '600',
+  },
+  bonusText: {
+    fontSize: 14,
+    color: '#FFD54F',
+    fontWeight: '700',
   },
 
   // Content
@@ -680,36 +700,53 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // Stats Cards
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  statCard: {
-    width: STAT_CARD_WIDTH,
-    backgroundColor: '#fff',
+  // Earnings Card
+  earningsCard: {
+    backgroundColor: GREEN_THEME.light,
     borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: GREEN_THEME.accent,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
-  statValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
+  earningsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 12,
   },
-  statValueGreen: {
+  earningsInfo: {
+    flex: 1,
+  },
+  earningsValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: GREEN_THEME.primary,
   },
-  statLabel: {
+  earningsLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginTop: 2,
+  },
+  earningsValueEmpty: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#999',
+  },
+  earningsLabelEmpty: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 2,
+  },
+  earningsExplanation: {
     fontSize: 14,
     color: '#666',
+    lineHeight: 20,
     marginTop: 4,
   },
 
@@ -765,11 +802,16 @@ const styles = StyleSheet.create({
   },
   pigIndicator: {
     position: 'absolute',
-    top: -2,
-    transform: [{ translateX: -12 }],
+    top: -8,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ translateX: -14 }],
   },
   pigEmoji: {
     fontSize: 24,
+    textAlign: 'center',
   },
   goalText: {
     fontSize: 14,
@@ -865,58 +907,53 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
   },
-  bonusCardsRow: {
+  howItWorksItem: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  bonusMilestone: {
-    flex: 1,
+  howItWorksIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: GREEN_THEME.light,
-    borderRadius: 16,
-    padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  bonusMilestoneActive: {
-    borderWidth: 2,
-    borderColor: GREEN_THEME.dark,
-  },
-  bonusDays: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginTop: 8,
-  },
-  bonusPercent: {
-    fontSize: 14,
-    color: GREEN_THEME.dark,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  currentBonusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8E1',
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  currentBonusInfo: {
+  howItWorksText: {
     flex: 1,
   },
-  currentBonusDays: {
+  howItWorksTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#333',
+    marginBottom: 4,
   },
-  currentBonusPercent: {
+  howItWorksDescription: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
+    lineHeight: 20,
   },
-  currentBonusValue: {
-    color: GREEN_THEME.primary,
-    fontWeight: '700',
+  magicCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF9E6',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#FFE082',
+  },
+  magicEmoji: {
+    fontSize: 32,
+  },
+  magicText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
 
   // Bottom Sheet Content
@@ -962,7 +999,7 @@ const styles = StyleSheet.create({
   withdrawSheetButtonText: {
     color: '#333',
   },
-  bonusBadge: {
+  infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
@@ -970,17 +1007,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
   },
-  bonusBadgeText: {
+  infoText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: GREEN_THEME.dark,
+    color: '#666',
     flex: 1,
-  },
-  withdrawPreview: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF9800',
-    textAlign: 'center',
+    lineHeight: 20,
   },
   warningBox: {
     flexDirection: 'row',

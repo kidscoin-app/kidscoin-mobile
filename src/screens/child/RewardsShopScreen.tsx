@@ -19,8 +19,6 @@ import { Reward } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { useRewards, useWallet, useRequestRedemption, useRefreshOnFocus } from '../../hooks';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 colunas com padding
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 const RewardsShopScreen: React.FC = () => {
@@ -316,11 +314,11 @@ const styles = StyleSheet.create({
   },
   rewardRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 16,
   },
   rewardCard: {
-    width: CARD_WIDTH,
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   rewardCardPlaceholder: {
-    width: CARD_WIDTH,
+    flex: 1,
   },
   rewardIconContainer: {
     width: 64,

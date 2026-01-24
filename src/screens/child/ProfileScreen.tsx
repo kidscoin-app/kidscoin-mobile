@@ -23,8 +23,6 @@ import { AvatarSelector } from '../../components';
 import { getAvatarEmoji } from '../../utils/avatars';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const STAT_CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
-const BADGE_SIZE = (SCREEN_WIDTH - 80) / 4;
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 // Cores do tema roxo
@@ -661,7 +659,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statCard: {
-    width: STAT_CARD_WIDTH - 6,
+    flex: 1,
+    minWidth: '47%',
+    maxWidth: '48%',
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   achievementItem: {
-    width: BADGE_SIZE,
+    width: '23%',
     alignItems: 'center',
     marginBottom: 16,
   },
