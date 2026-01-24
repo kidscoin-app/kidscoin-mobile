@@ -31,14 +31,12 @@ const LoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.headerSubtitle}>Educacao Financeira Infantil</Text>
+          <Image
+            source={require('../../../assets/logo-white.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.headerSubtitle}>Educação Financeira Infantil</Text>
         </View>
 
         <View style={styles.card}>
@@ -110,23 +108,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
   },
-  logoContainer: {
-    width: 180,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.common.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
   logoImage: {
-    width: 140,
-    height: 45,
+    width: 260,
+    height: 80,
+    marginBottom: 16,
   },
   logoText: {
     fontSize: 32,

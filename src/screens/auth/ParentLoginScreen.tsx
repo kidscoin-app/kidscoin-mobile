@@ -74,13 +74,11 @@ const ParentLoginScreen: React.FC = () => {
             <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.common.white} />
           </TouchableOpacity>
 
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require('../../../assets/logo-white.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.headerSubtitle}>Acesso para Pais</Text>
         </View>
 
@@ -179,23 +177,10 @@ const styles = StyleSheet.create({
     left: 20,
     padding: 8,
   },
-  logoContainer: {
-    width: 180,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.common.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
   logoImage: {
-    width: 140,
-    height: 45,
+    width: 260,
+    height: 80,
+    marginBottom: 16,
   },
   logoText: {
     fontSize: 32,

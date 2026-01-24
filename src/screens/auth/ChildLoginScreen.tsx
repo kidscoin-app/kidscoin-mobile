@@ -96,16 +96,14 @@ const ChildLoginScreen: React.FC = () => {
 
           <Image
             source={require('../../../assets/porco-feliz.png')}
+            style={styles.mascotImage}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('../../../assets/logo-white.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={styles.logoTextImage}
-              resizeMode="contain"
-            />
-          </View>
         </View>
 
         <View style={styles.card}>
@@ -192,27 +190,14 @@ const styles = StyleSheet.create({
     left: 20,
     padding: 8,
   },
-  logoImage: {
+  mascotImage: {
     width: 120,
     height: 120,
     marginBottom: 8,
   },
-  logoContainer: {
-    width: 180,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.common.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  logoTextImage: {
-    width: 140,
-    height: 45,
+  logoImage: {
+    width: 260,
+    height: 80,
   },
   card: {
     flex: 1,
