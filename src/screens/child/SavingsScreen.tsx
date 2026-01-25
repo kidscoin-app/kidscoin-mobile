@@ -327,7 +327,7 @@ const SavingsScreen: React.FC = () => {
             <Text style={styles.projectionTitle}>Quanto vai crescer?</Text>
           </View>
           <Text style={styles.projectionSubtitle}>
-            Suas moedas crescem <Text style={styles.projectionHighlight}>TODOS OS DIAS</Text>! E quanto mais tempo guardadas, mais rendem! 📈
+            Suas moedas crescem <Text style={styles.projectionHighlight}>TODOS OS DIAS</Text>! E quanto mais tempo guardadas, mais rendem!
           </Text>
           <View style={styles.projectionList}>
             <View style={styles.projectionItem}>
@@ -367,7 +367,10 @@ const SavingsScreen: React.FC = () => {
               <MaterialCommunityIcons name="calendar-today" size={20} color={GREEN_THEME.primary} />
             </View>
             <View style={styles.howItWorksText}>
-              <Text style={styles.howItWorksTitle}>Todos os dias! 🌟</Text>
+              <View style={styles.howItWorksTitleRow}>
+                <Text style={styles.howItWorksTitle}>Todos os dias! </Text>
+                <MaterialCommunityIcons name="star-shooting" size={20} color="#FFC107" />
+              </View>
               <Text style={styles.howItWorksDescription}>
                 Suas moedas crescem um pouquinho TODO DIA automaticamente!
               </Text>
@@ -380,7 +383,10 @@ const SavingsScreen: React.FC = () => {
               <MaterialCommunityIcons name="trending-up" size={20} color="#FF9800" />
             </View>
             <View style={styles.howItWorksText}>
-              <Text style={styles.howItWorksTitle}>Quanto mais tempo, mais rende! 📈</Text>
+              <View style={styles.howItWorksTitleRow}>
+                <Text style={styles.howItWorksTitle}>Quanto mais tempo, mais rende! </Text>
+                <MaterialCommunityIcons name="chart-line" size={20} color="#4CAF50" />
+              </View>
               <Text style={styles.howItWorksDescription}>
                 Primeiros 6 dias: Rende menos{'\n'}
                 Depois de 1 semana: Rende mais!{'\n'}
@@ -392,7 +398,7 @@ const SavingsScreen: React.FC = () => {
 
           {/* Explicação Simples */}
           <View style={styles.magicCard}>
-            <Text style={styles.magicEmoji}>✨</Text>
+            <MaterialCommunityIcons name="shimmer" size={28} color="#FFC107" />
             <Text style={styles.magicText}>
               E o melhor: você não precisa fazer NADA! Suas moedas crescem sozinhas enquanto você dorme! 😴
             </Text>
@@ -463,7 +469,7 @@ const SavingsScreen: React.FC = () => {
           <View style={styles.infoBox}>
             <MaterialCommunityIcons name="information" size={20} color={GREEN_THEME.primary} />
             <Text style={styles.infoText}>
-              Esse valor já inclui os juros que suas moedas renderam! 💰
+              Esse valor já inclui os juros que suas moedas renderam!
             </Text>
           </View>
 
@@ -924,6 +930,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#333',
+    marginBottom: 4,
+  },
+  howItWorksTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   howItWorksDescription: {

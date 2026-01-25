@@ -253,7 +253,7 @@ const ChildDashboardScreen: React.FC = () => {
           <View style={styles.statsTopRow}>
             {/* Coins */}
             <View style={styles.coinsSection}>
-              <Text style={styles.coinEmoji}>🪙</Text>
+              <MaterialCommunityIcons name="hand-coin" size={32} color="#FFC107" />
               <Text style={styles.coinsValue}>
                 {(wallet?.balance || 0).toLocaleString('pt-BR')}
               </Text>
@@ -315,10 +315,10 @@ const ChildDashboardScreen: React.FC = () => {
           <View style={styles.taskOfDayCard}>
             <View style={styles.taskOfDayHeader}>
               <View style={styles.taskOfDayTitleRow}>
-                <Text style={styles.taskOfDayStarEmoji}>⭐</Text>
+                <MaterialCommunityIcons name="star" size={24} color="#FFC107" />
                 <Text style={styles.taskOfDayTitle}>TAREFA DO DIA</Text>
               </View>
-              <Text style={styles.taskOfDaySparkle}>✨</Text>
+              <MaterialCommunityIcons name="shimmer" size={24} color="#FFC107" />
             </View>
 
             <View style={styles.taskOfDayContent}>
@@ -332,8 +332,14 @@ const ChildDashboardScreen: React.FC = () => {
               <View style={styles.taskInfo}>
                 <Text style={styles.taskTitle}>{taskOfTheDay.task.title}</Text>
                 <View style={styles.taskRewards}>
-                  <Text style={styles.taskCoinReward}>🪙 +{taskOfTheDay.task.coinValue}</Text>
-                  <Text style={styles.taskXpReward}>⭐ +{taskOfTheDay.task.xpValue} XP</Text>
+                  <View style={styles.taskRewardItem}>
+                    <MaterialCommunityIcons name="hand-coin" size={16} color="#FFC107" />
+                    <Text style={styles.taskCoinReward}> +{taskOfTheDay.task.coinValue}</Text>
+                  </View>
+                  <View style={styles.taskRewardItem}>
+                    <MaterialCommunityIcons name="star" size={16} color="#FFC107" />
+                    <Text style={styles.taskXpReward}> +{taskOfTheDay.task.xpValue} XP</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -357,7 +363,7 @@ const ChildDashboardScreen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.noTaskCard}>
-            <Text style={styles.noTaskEmoji}>🎉</Text>
+            <MaterialCommunityIcons name="party-popper" size={48} color="#9C27B0" />
             <Text style={styles.noTaskText}>Parabéns! Todas as tarefas foram concluídas!</Text>
             <TouchableOpacity
               style={styles.viewAllTasksLink}
@@ -408,7 +414,7 @@ const ChildDashboardScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             <View style={styles.quickAccessIconContainer}>
-              <Text style={styles.quickAccessEmoji}>📋</Text>
+              <MaterialCommunityIcons name="clipboard-text" size={32} color="#9C27B0" />
               {pendingTasks.length > 0 && (
                 <View style={styles.quickAccessBadge}>
                   <Text style={styles.quickAccessBadgeText}>{pendingTasks.length}</Text>
@@ -424,7 +430,7 @@ const ChildDashboardScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             <View style={styles.quickAccessIconContainer}>
-              <Text style={styles.quickAccessEmoji}>🎁</Text>
+              <MaterialCommunityIcons name="gift" size={32} color="#9C27B0" />
             </View>
             <Text style={styles.quickAccessLabel}>Ver Loja</Text>
           </TouchableOpacity>
@@ -433,8 +439,9 @@ const ChildDashboardScreen: React.FC = () => {
         {/* Motivational Banner */}
         {pendingTasks.length > 0 && (
           <View style={styles.motivationalBanner}>
+            <MaterialCommunityIcons name="star-shooting" size={20} color="#FFC107" />
             <Text style={styles.motivationalText}>
-              🌟 Continue assim! Faltam só {pendingTasks.length} tarefa{pendingTasks.length > 1 ? 's' : ''} para sua meta diária!
+              Continue assim! Faltam só {pendingTasks.length} tarefa{pendingTasks.length > 1 ? 's' : ''} para sua meta diária!
             </Text>
           </View>
         )}
@@ -562,6 +569,7 @@ const styles = StyleSheet.create({
   coinsSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10
   },
   coinEmoji: {
     fontSize: 36,
@@ -742,6 +750,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
   },
+  taskRewardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   taskCoinReward: {
     fontSize: 15,
     fontWeight: '600',
@@ -909,6 +921,10 @@ const styles = StyleSheet.create({
 
   // Motivational Banner
   motivationalBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#E8F5E9',
     marginHorizontal: 16,
     marginTop: 16,
