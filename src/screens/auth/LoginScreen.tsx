@@ -80,7 +80,7 @@ const LoginScreen: React.FC = () => {
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Nao tem conta? </Text>
+            <Text style={styles.footerText}>Não tem conta? </Text>
             <Text
               style={styles.footerLink}
               onPress={() => navigation.navigate('Register')}

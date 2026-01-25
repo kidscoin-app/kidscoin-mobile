@@ -37,7 +37,7 @@ const RewardsShopScreen: React.FC = () => {
   const requestRedemption = useRequestRedemption({
     onSuccess: (_, variables) => {
       const reward = rewards.find(r => r.id === variables.rewardId);
-      setSuccess(`Pedido de "${reward?.name || 'recompensa'}" enviado! Aguarde aprovacao.`);
+      setSuccess(`Pedido de "${reward?.name || 'recompensa'}" enviado! Aguarde aprovação.`);
     },
     onError: (err) => {
       setError(getErrorMessage(err));
@@ -53,7 +53,7 @@ const RewardsShopScreen: React.FC = () => {
 
     // Verificar se tem moedas suficientes
     if (balance < reward.coinCost) {
-      setError('Você nao tem moedas suficientes!');
+      setError('Você não tem moedas suficientes!');
       return;
     }
 

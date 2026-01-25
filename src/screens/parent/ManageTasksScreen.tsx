@@ -40,7 +40,7 @@ import { BottomSheet } from '../../components';
 // Categorias disponiveis
 const CATEGORIES: { value: TaskCategory; label: string; icon: string; emoji: string }[] = [
   { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom', emoji: '' },
-  { value: 'ORGANIZACAO', label: 'Organizacao', icon: 'package-variant', emoji: '' },
+  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant', emoji: '' },
   { value: 'ESTUDOS', label: 'Estudo', icon: 'book-open', emoji: '' },
   { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart', emoji: '' },
   { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal', emoji: '' },
@@ -370,7 +370,7 @@ const ManageTasksScreen: React.FC = () => {
       case 'PENDING':
         return 'Pendente';
       case 'COMPLETED':
-        return 'Aguardando Aprovacao';
+        return 'Aguardando Aprovação';
       case 'APPROVED':
         return 'Aprovada';
       case 'REJECTED':
@@ -619,7 +619,7 @@ const ManageTasksScreen: React.FC = () => {
           multiline
           numberOfLines={3}
           style={styles.inputMultiline}
-          placeholder="Descricao (opcional)"
+          placeholder="Descrição (opcional)"
           outlineColor={COLORS.common.border}
           activeOutlineColor={COLORS.parent.primary}
           outlineStyle={styles.inputOutline}
@@ -808,7 +808,7 @@ const ManageTasksScreen: React.FC = () => {
               mode="outlined"
               multiline
               numberOfLines={3}
-              placeholder="Ex: Nao foi feito corretamente"
+              placeholder="Ex: Não foi feito corretamente"
               style={styles.dialogInput}
             />
           </Dialog.Content>
@@ -833,7 +833,7 @@ const ManageTasksScreen: React.FC = () => {
               Tem certeza que deseja excluir a tarefa "{deletingTask?.task.title}"?
             </Text>
             <Text style={[styles.dialogText, { fontSize: 13, color: COLORS.common.textLight }]}>
-              Esta acao nao pode ser desfeita.
+              Esta ação não pode ser desfeita.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
@@ -844,8 +844,8 @@ const ManageTasksScreen: React.FC = () => {
               loading={deleteTask.isPending}
               disabled={deleteTask.isPending}
             >
-              Excluir
-            </Button>
+                Excluir
+              </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

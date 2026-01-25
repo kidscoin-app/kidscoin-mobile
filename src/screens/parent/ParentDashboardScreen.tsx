@@ -239,7 +239,7 @@ const ParentDashboardScreen: React.FC = () => {
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.greeting}>Ola, {user?.fullName}!</Text>
-            <Text style={styles.subtitle}>Painel de Controle da Familia</Text>
+            <Text style={styles.subtitle}>Painel de Controle da Família</Text>
           </View>
           <TouchableOpacity
             style={styles.notificationButton}
@@ -263,7 +263,7 @@ const ParentDashboardScreen: React.FC = () => {
             <MaterialCommunityIcons name="account-group-outline" size={24} color={COLORS.parent.primary} />
           </View>
           <Text style={styles.statValue}>{children.length}</Text>
-          <Text style={styles.statLabel}>Criancas</Text>
+          <Text style={styles.statLabel}>Crianças</Text>
         </View>
 
         <View style={styles.statCard}>
@@ -279,7 +279,7 @@ const ParentDashboardScreen: React.FC = () => {
             <MaterialCommunityIcons name="gift-outline" size={24} color="#FF9800" />
           </View>
           <Text style={styles.statValue}>{rewards.length}</Text>
-          <Text style={styles.statLabel}>Premios</Text>
+          <Text style={styles.statLabel}>Prêmios</Text>
         </View>
 
         <View style={[styles.statCard, styles.statCardHighlighted]}>
@@ -296,7 +296,7 @@ const ParentDashboardScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleContainer}>
             <MaterialCommunityIcons name="auto-fix" size={20} color={COLORS.parent.primary} />
-            <Text style={styles.sectionTitle}>Acoes Necessarias</Text>
+            <Text style={styles.sectionTitle}>Açoes Necessárias</Text>
             {pendingActions.length > 0 && (
               <Badge size={22} style={styles.countBadge}>
                 {pendingActions.length}
@@ -350,7 +350,7 @@ const ParentDashboardScreen: React.FC = () => {
             </View>
             <Text style={styles.emptyActionsTitle}>Tudo em dia!</Text>
             <Text style={styles.emptyActionsText}>
-              Nao ha acoes pendentes no momento.
+              Não há ações pendentes no momento.
             </Text>
           </View>
         ) : filteredActions.length === 0 ? (
@@ -362,9 +362,9 @@ const ParentDashboardScreen: React.FC = () => {
                 color={COLORS.common.textLight}
               />
             </View>
-            <Text style={styles.emptyActionsTitle}>Nenhuma acao</Text>
+            <Text style={styles.emptyActionsTitle}>Nenhuma ação</Text>
             <Text style={styles.emptyActionsText}>
-              Nao ha {actionFilter === 'task' ? 'tarefas' : 'recompensas'} pendentes.
+              Não há {actionFilter === 'task' ? 'tarefas' : 'recompensas'} pendentes.
             </Text>
           </View>
         ) : (
@@ -457,7 +457,7 @@ const ParentDashboardScreen: React.FC = () => {
           </Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
-              Informe o motivo da rejeicao para {rejectingAction?.childName}:
+              Informe o motivo da rejeição para {rejectingAction?.childName}:
             </Text>
             <TextInput
               value={rejectionReason}
@@ -466,7 +466,7 @@ const ParentDashboardScreen: React.FC = () => {
               multiline
               numberOfLines={3}
               placeholder={rejectingAction?.type === 'task' 
-                ? "Ex: Tarefa nao foi completada corretamente" 
+                ? "Ex: Tarefa não foi completada corretamente" 
                 : "Ex: Não pode jogar videogame hoje"
               }
               style={styles.dialogInput}

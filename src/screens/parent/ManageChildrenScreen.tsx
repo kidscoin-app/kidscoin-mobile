@@ -194,6 +194,7 @@ const ManageChildrenScreen: React.FC = () => {
   const openDeleteDialog = (child: User) => {
     setDeletingChild(child);
     setDeleteDialogVisible(true);
+    setShowDetailsSheet(false); // Fechar BottomSheet para evitar problema de z-index
   };
 
   /**
@@ -243,7 +244,7 @@ const ManageChildrenScreen: React.FC = () => {
               size={48}
               color={COLORS.common.textLight}
             />
-            <Text style={styles.emptyText}>Nenhuma crianca cadastrada ainda</Text>
+            <Text style={styles.emptyText}>Nenhuma criança cadastrada ainda</Text>
           </View>
         ) : (
           children.map((child) => (
@@ -431,7 +432,7 @@ const ManageChildrenScreen: React.FC = () => {
               <View style={[styles.statsCard, { backgroundColor: '#F3E5F5' }]}>
                 <MaterialCommunityIcons name="trophy" size={24} color={COLORS.parent.primary} />
                 <Text style={styles.statsCardValue}>Lv. {selectedChild.level ?? 1}</Text>
-                <Text style={styles.statsCardLabel}>Nivel</Text>
+                <Text style={styles.statsCardLabel}>Nível</Text>
               </View>
             </View>
 
@@ -493,7 +494,7 @@ const ManageChildrenScreen: React.FC = () => {
               Tem certeza que deseja excluir <Text style={styles.dialogChildName}>{deletingChild?.fullName}</Text>?
             </Text>
             <Text style={[styles.dialogText, { color: COLORS.common.error, fontWeight: '600' }]}>
-              Esta acao e irreversivel. Todos os dados serao perdidos.
+              Esta ação e irreversível. Todos os dados serão perdidos.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

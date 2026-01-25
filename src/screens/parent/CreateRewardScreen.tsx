@@ -414,7 +414,7 @@ const CreateRewardScreen: React.FC = () => {
           multiline
           numberOfLines={3}
           style={styles.inputMultiline}
-          placeholder="Descricao (opcional)"
+          placeholder="Descrição (opcional)"
           outlineColor={COLORS.common.border}
           activeOutlineColor={COLORS.parent.primary}
           outlineStyle={styles.inputOutline}
