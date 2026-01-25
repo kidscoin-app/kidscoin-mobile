@@ -290,7 +290,7 @@ const ChildDashboardScreen: React.FC = () => {
                 <View style={styles.levelIconCircle}>
                   <MaterialCommunityIcons name="star" size={16} color="#333" />
                 </View>
-                <Text style={styles.levelTitle}>Nivel {gamification?.currentLevel || 1}</Text>
+                <Text style={styles.levelTitle}>Nível {gamification?.currentLevel || 1}</Text>
               </View>
               <Text style={styles.levelXp}>
                 {gamification?.currentXp || 0}/{gamification?.xpForNextLevel || 100} XP
@@ -305,7 +305,7 @@ const ChildDashboardScreen: React.FC = () => {
             </View>
 
             <Text style={styles.xpNeeded}>
-              {gamification?.xpNeededForNextLevel || 100} XP para o proximo nivel!
+              {gamification?.xpNeededForNextLevel || 100} XP para o próximo nível!
             </Text>
           </View>
         </View>
@@ -358,7 +358,7 @@ const ChildDashboardScreen: React.FC = () => {
         ) : (
           <View style={styles.noTaskCard}>
             <Text style={styles.noTaskEmoji}>🎉</Text>
-            <Text style={styles.noTaskText}>Parabens! Todas as tarefas foram concluidas!</Text>
+            <Text style={styles.noTaskText}>Parabéns! Todas as tarefas foram concluídas!</Text>
             <TouchableOpacity
               style={styles.viewAllTasksLink}
               onPress={navigateToTasks}
@@ -434,7 +434,7 @@ const ChildDashboardScreen: React.FC = () => {
         {pendingTasks.length > 0 && (
           <View style={styles.motivationalBanner}>
             <Text style={styles.motivationalText}>
-              🌟 Continue assim! Faltam so {pendingTasks.length} tarefa{pendingTasks.length > 1 ? 's' : ''} para sua meta diaria!
+              🌟 Continue assim! Faltam só {pendingTasks.length} tarefa{pendingTasks.length > 1 ? 's' : ''} para sua meta diária!
             </Text>
           </View>
         )}

@@ -117,7 +117,7 @@ const ProfileScreen: React.FC = () => {
       case 'REDEMPTION_COUNT':
         return `Resgate ${badge.criteriaValue} recompensas`;
       case 'SAVINGS_AMOUNT':
-        return `Economize ${badge.criteriaValue} moedas na poupanca`;
+        return `Economize ${badge.criteriaValue} moedas na poupança`;
       case 'TASKS_IN_ONE_DAY':
         return `Complete ${badge.criteriaValue} tarefas em um dia`;
       case 'STREAK_DAYS':
@@ -198,7 +198,7 @@ const ProfileScreen: React.FC = () => {
                 <View style={styles.levelIconCircle}>
                   <MaterialCommunityIcons name="star" size={20} color="#333" />
                 </View>
-                <Text style={styles.levelTitle}>Nivel {gamification?.currentLevel || 1}</Text>
+                <Text style={styles.levelTitle}>Nível {gamification?.currentLevel || 1}</Text>
               </View>
               <Text style={styles.levelXp}>
                 {gamification?.currentXp || 0}/{gamification?.xpForNextLevel || 100} XP
@@ -213,7 +213,7 @@ const ProfileScreen: React.FC = () => {
             </View>
 
             <Text style={styles.xpNeeded}>
-              {gamification?.xpNeededForNextLevel || 100} XP para o proximo nivel!
+              {gamification?.xpNeededForNextLevel || 100} XP para o proximo nível!
             </Text>
           </View>
 
@@ -307,7 +307,7 @@ const ProfileScreen: React.FC = () => {
               <View style={styles.emptyAchievements}>
                 <MaterialCommunityIcons name="trophy-outline" size={48} color="#BDBDBD" />
                 <Text style={styles.emptyAchievementsText}>
-                  Nenhuma conquista disponivel ainda
+                  Nenhuma conquista disponível ainda
                 </Text>
               </View>
             )}

@@ -1,7 +1,3 @@
-/**
- * Tela da loja de recompensas (Child)
- * Migrado para React Query
- */
 import React, { useState } from 'react';
 import {
   ScrollView,
@@ -17,7 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getErrorMessage } from '../../services';
 import { Reward } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { useRewards, useWallet, useRequestRedemption, useRefreshOnFocus } from '../../hooks';
+import { useRewards, useWallet, useRequestRedemption, useRefreshOnFocus, usePendingRedemptions } from '../../hooks';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
@@ -29,10 +25,12 @@ const RewardsShopScreen: React.FC = () => {
   // React Query hooks
   const { data: rewards = [], isLoading, refetch: refetchRewards } = useRewards({ activeOnly: true });
   const { data: wallet, refetch: refetchWallet } = useWallet();
+  const { data: pendingRedemptions = [], refetch: refetchRedemptions } = usePendingRedemptions();
 
   // Atualizar dados quando a tela receber foco
   useRefreshOnFocus(refetchRewards);
   useRefreshOnFocus(refetchWallet);
+  useRefreshOnFocus(refetchRedemptions);
 
   const balance = wallet?.balance || 0;
 
@@ -55,7 +53,7 @@ const RewardsShopScreen: React.FC = () => {
 
     // Verificar se tem moedas suficientes
     if (balance < reward.coinCost) {
-      setError('Voce nao tem moedas suficientes!');
+      setError('Você nao tem moedas suficientes!');
       return;
     }
 
@@ -66,6 +64,13 @@ const RewardsShopScreen: React.FC = () => {
    * Verificar se crianca tem moedas suficientes
    */
   const hasEnoughCoins = (cost: number) => balance >= cost;
+
+  /**
+   * Verificar se há resgate pendente para esta recompensa
+   */
+  const hasPendingRedemption = (rewardId: string) => {
+    return pendingRedemptions.some(redemption => redemption.reward.id === rewardId);
+  };
 
   /**
    * Dividir rewards em pares para grid de 2 colunas
@@ -93,7 +98,7 @@ const RewardsShopScreen: React.FC = () => {
             </View>
             <View>
               <Text style={styles.statValue}>{rewards.length}</Text>
-              <Text style={styles.statLabel}>disponiveis</Text>
+              <Text style={styles.statLabel}>disponíveis</Text>
             </View>
           </View>
 
@@ -121,7 +126,7 @@ const RewardsShopScreen: React.FC = () => {
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="gift-outline" size={48} color={COLORS.common.textLight} />
             <Text style={styles.emptyTitle}>Nenhuma recompensa</Text>
-            <Text style={styles.emptyText}>Peca aos seus pais para criar algumas!</Text>
+            <Text style={styles.emptyText}>Peça aos seus pais para criar algumas!</Text>
           </View>
         ) : (
           <>
@@ -134,6 +139,16 @@ const RewardsShopScreen: React.FC = () => {
                   }
 
                   const canAfford = hasEnoughCoins(reward.coinCost);
+                  const isPending = hasPendingRedemption(reward.id);
+                  const isDisabled = !canAfford || isPending || requestRedemption.isPending;
+
+                  // Define o texto do botão
+                  let buttonText = 'Quero!';
+                  if (isPending) {
+                    buttonText = 'Aguardando...';
+                  } else if (!canAfford) {
+                    buttonText = 'Faltam moedas';
+                  }
 
                   return (
                     <View key={reward.id} style={styles.rewardCard}>
@@ -163,24 +178,24 @@ const RewardsShopScreen: React.FC = () => {
                       <TouchableOpacity
                         style={[
                           styles.redeemButton,
-                          !canAfford && styles.redeemButtonDisabled,
+                          isDisabled && styles.redeemButtonDisabled,
                         ]}
                         onPress={() => handleRequestRedemption(reward)}
-                        disabled={!canAfford || requestRedemption.isPending}
+                        disabled={isDisabled}
                         activeOpacity={0.8}
                       >
                         <MaterialCommunityIcons
-                          name="gift"
+                          name={isPending ? 'clock-outline' : 'gift'}
                           size={18}
-                          color={canAfford ? '#fff' : COLORS.common.textLight}
+                          color={isDisabled ? COLORS.common.textLight : '#fff'}
                         />
                         <Text
                           style={[
                             styles.redeemButtonText,
-                            !canAfford && styles.redeemButtonTextDisabled,
+                            isDisabled && styles.redeemButtonTextDisabled,
                           ]}
                         >
-                          {canAfford ? 'Quero!' : 'Faltam moedas'}
+                          {buttonText}
                         </Text>
                       </TouchableOpacity>
                     </View>

@@ -1,7 +1,4 @@
-/**
- * Tela de tarefas da crianca
- * Migrado para React Query
- */
+
 import React, { useMemo, useState } from 'react';
 import {
   ScrollView,
@@ -24,13 +21,13 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight |
 // Categorias disponiveis com icones
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom' },
-  { value: 'ORGANIZACAO', label: 'Organizacao', icon: 'package-variant' },
+  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant' },
   { value: 'ESTUDOS', label: 'Estudo', icon: 'book-open-variant' },
   { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart' },
   { value: 'OUTRAS', label: 'Outras', icon: 'star-four-points' },
 ];
 
-// Funcao para obter icone da categoria
+// Função para obter ícone da categoria
 const getCategoryIcon = (category: TaskCategory): string => {
   const found = CATEGORIES.find((c) => c.value === category);
   return found?.icon || 'star-four-points';
@@ -53,7 +50,7 @@ const ChildTasksScreen: React.FC = () => {
 
   const completeTask = useCompleteTask({
     onSuccess: () => {
-      setSuccess('Tarefa concluida! Aguarde a aprovacao do responsavel.');
+      setSuccess('Tarefa concluída! Aguarde a aprovação do responsável.');
     },
     onError: (err) => {
       setError(getErrorMessage(err));
@@ -62,7 +59,7 @@ const ChildTasksScreen: React.FC = () => {
 
   const retryTask = useRetryTask({
     onSuccess: () => {
-      setSuccess('Tarefa pronta para refazer! Mostre que voce consegue!');
+      setSuccess('Tarefa pronta para refazer! Mostre que você consegue!');
     },
     onError: (err) => {
       setError(getErrorMessage(err));
@@ -191,7 +188,7 @@ const ChildTasksScreen: React.FC = () => {
             </View>
             <View>
               <Text style={styles.statValue}>{tasks.filter(t => t.status === 'APPROVED').length}</Text>
-              <Text style={styles.statLabel}>concluidas</Text>
+              <Text style={styles.statLabel}>concluídas</Text>
             </View>
           </View>
         </View>
@@ -301,14 +298,14 @@ const ChildTasksScreen: React.FC = () => {
               color={COLORS.common.textLight}
             />
             <Text style={styles.emptyTitle}>
-              {statusFilter === 'PENDING' ? 'Parabens!' : 'Nenhuma tarefa'}
+              {statusFilter === 'PENDING' ? 'Parabéns!' : 'Nenhuma tarefa'}
             </Text>
             <Text style={styles.emptyText}>
               {statusFilter === 'PENDING'
-                ? 'Voce nao tem tarefas pendentes!'
+                ? 'Você não tem tarefas pendentes!'
                 : statusFilter === 'REJECTED'
                 ? 'Nenhuma tarefa recusada.'
-                : 'Voce ainda nao tem tarefas.'}
+                : 'Você ainda não tem tarefas.'}
             </Text>
           </View>
         ) : (
@@ -348,7 +345,7 @@ const ChildTasksScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* Descricao */}
+                  {/* Descrição */}
                   {assignment.task.description && (
                     <Text style={styles.taskDescription} numberOfLines={1}>
                       {assignment.task.description}
@@ -384,7 +381,7 @@ const ChildTasksScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
 
-              {/* Motivo da Rejeicao */}
+              {/* Motivo da Rejeição */}
               {assignment.status === 'REJECTED' && assignment.rejectionReason && (
                 <View style={styles.rejectionContainer}>
                   <View style={styles.rejectionHeader}>
@@ -410,7 +407,7 @@ const ChildTasksScreen: React.FC = () => {
               {assignment.status === 'COMPLETED' && (
                 <View style={styles.reviewingContainer}>
                   <MaterialCommunityIcons name="clock-outline" size={16} color={COLORS.child.primary} />
-                  <Text style={styles.reviewingText}>Aguardando aprovacao do responsavel...</Text>
+                  <Text style={styles.reviewingText}>Aguardando aprovação do responsável...</Text>
                 </View>
               )}
 

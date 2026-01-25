@@ -1,7 +1,3 @@
-/**
- * Tela de Poupança (Child)
- * Redesign com header verde e cards modernos
- */
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
@@ -105,7 +101,7 @@ const SavingsScreen: React.FC = () => {
         setSavingsGoal(parseInt(storedGoal));
       }
     } catch (error) {
-      console.error('Erro ao carregar meta de poupanca:', error);
+      console.error('Erro ao carregar meta de poupança:', error);
     }
   };
 
@@ -132,7 +128,7 @@ const SavingsScreen: React.FC = () => {
     }
 
     if (goalValue < currentBalance) {
-      showSnackbar('A meta nao pode ser menor que o saldo atual', 'error');
+      showSnackbar('A meta não pode ser menor que o saldo atual', 'error');
       return;
     }
 
@@ -182,7 +178,7 @@ const SavingsScreen: React.FC = () => {
       return;
     }
     if (!savings || amount > savings.availableBalance) {
-      showSnackbar('Voce nao tem moedas suficientes na poupanca', 'error');
+      showSnackbar('Você não tem moedas suficientes na poupança', 'error');
       return;
     }
 
@@ -197,7 +193,7 @@ const SavingsScreen: React.FC = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={GREEN_THEME.primary} />
-        <Text style={styles.loadingText}>Carregando poupanca...</Text>
+        <Text style={styles.loadingText}>Carregando poupança...</Text>
       </View>
     );
   }
@@ -213,14 +209,14 @@ const SavingsScreen: React.FC = () => {
       {/* Header Verde */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Minha Poupanca</Text>
+          <Text style={styles.headerTitle}>Minha Poupança</Text>
           {/* <MaterialCommunityIcons name="piggy-bank" size={48} color="#fff" style={styles.headerIcon} /> */}
         </View>
 
         <View style={styles.balanceSection}>
-          <Text style={styles.balanceLabel}>Voce tem agora</Text>
+          <Text style={styles.balanceLabel}>Você tem agora</Text>
           <Text style={styles.balanceValue}>{formatNumber(availableBalance)}</Text>
-          <Text style={styles.balanceSubtext}>moedas disponiveis</Text>
+          <Text style={styles.balanceSubtext}>moedas disponíveis</Text>
 
           {/* Detalhes do saldo */}
           <View style={styles.balanceDetails}>
@@ -231,7 +227,7 @@ const SavingsScreen: React.FC = () => {
             {pendingInterest > 0 && (
               <View style={styles.detailRow}>
                 <MaterialCommunityIcons name="trending-up" size={18} color="#FFD54F" />
-                <Text style={styles.bonusText}>Bonus: +{formatNumber(pendingInterest)}</Text>
+                <Text style={styles.bonusText}>Bônus: +{formatNumber(pendingInterest)}</Text>
               </View>
             )}
           </View>
@@ -277,7 +273,7 @@ const SavingsScreen: React.FC = () => {
                 </View>
               </View>
               <Text style={styles.earningsExplanation}>
-                Das suas {formatNumber(availableBalance)} moedas, {formatNumber(pendingInterest)} foram de bonus que sua poupanca gerou!
+                Das suas {formatNumber(availableBalance)} moedas, {formatNumber(pendingInterest)} foram de bônus que sua poupança gerou!
               </Text>
             </>
           ) : (
@@ -285,12 +281,12 @@ const SavingsScreen: React.FC = () => {
               <View style={styles.earningsHeader}>
                 <MaterialCommunityIcons name="sprout" size={40} color="#999" />
                 <View style={styles.earningsInfo}>
-                  <Text style={styles.earningsValueEmpty}>Ainda sem bonus</Text>
-                  <Text style={styles.earningsLabelEmpty}>Sua poupanca esta crescendo! 🌱</Text>
+                  <Text style={styles.earningsValueEmpty}>Ainda sem bônus</Text>
+                  <Text style={styles.earningsLabelEmpty}>Sua poupança esta crescendo! 🌱</Text>
                 </View>
               </View>
               <Text style={styles.earningsExplanation}>
-                Continue guardando suas moedas e logo elas vao comecar a crescer sozinhas!
+                Continue guardando suas moedas e logo elas vão comecar a crescer sozinhas!
               </Text>
             </>
           )}
@@ -307,7 +303,7 @@ const SavingsScreen: React.FC = () => {
         >
           <View style={styles.goalHeader}>
             <MaterialCommunityIcons name="target" size={24} color={COLORS.child.primary} />
-            <Text style={styles.goalTitle}>Meta de Poupanca</Text>
+            <Text style={styles.goalTitle}>Meta de Poupança</Text>
           </View>
           <View style={styles.goalProgressRow}>
             <Text style={styles.goalProgressLabel}>Progresso</Text>
@@ -344,7 +340,7 @@ const SavingsScreen: React.FC = () => {
             <View style={styles.projectionItem}>
               <View style={styles.projectionLeft}>
                 <MaterialCommunityIcons name="calendar-month" size={20} color="#666" />
-                <Text style={styles.projectionPeriod}>1 mes</Text>
+                <Text style={styles.projectionPeriod}>1 mês</Text>
               </View>
               <Text style={styles.projectionValue}>≈ +14%</Text>
             </View>
@@ -362,7 +358,7 @@ const SavingsScreen: React.FC = () => {
         <View style={styles.bonusCard}>
           <View style={styles.bonusHeader}>
             <MaterialCommunityIcons name="lightbulb-on-outline" size={24} color={GREEN_THEME.primary} />
-            <Text style={styles.bonusTitle}>Como sua poupanca cresce?</Text>
+            <Text style={styles.bonusTitle}>Como sua poupança cresce?</Text>
           </View>
 
           {/* Rendimento Diário */}
@@ -388,7 +384,7 @@ const SavingsScreen: React.FC = () => {
               <Text style={styles.howItWorksDescription}>
                 Primeiros 6 dias: Rende menos{'\n'}
                 Depois de 1 semana: Rende mais!{'\n'}
-                Depois de 1 mes: Rende ainda mais!!{'\n'}
+                Depois de 1 mês: Rende ainda mais!!{'\n'}
                 Depois de 3 meses: Rende MUITO MAIS!!!
               </Text>
             </View>
@@ -398,7 +394,7 @@ const SavingsScreen: React.FC = () => {
           <View style={styles.magicCard}>
             <Text style={styles.magicEmoji}>✨</Text>
             <Text style={styles.magicText}>
-              E o melhor: voce nao precisa fazer NADA! Suas moedas crescem sozinhas enquanto voce dorme! 😴
+              E o melhor: você não precisa fazer NADA! Suas moedas crescem sozinhas enquanto você dorme! 😴
             </Text>
           </View>
         </View>
@@ -413,11 +409,11 @@ const SavingsScreen: React.FC = () => {
           setDepositSheetVisible(false);
           setDepositAmount('');
         }}
-        title="Depositar na Poupanca"
+        title="Depositar na Poupança"
         height={0.5}
       >
         <View style={styles.sheetContent}>
-          <Text style={styles.sheetLabel}>Saldo disponivel na carteira</Text>
+          <Text style={styles.sheetLabel}>Saldo disponível na carteira</Text>
           <Text style={styles.sheetBalance}>{formatNumber(wallet?.balance || 0)} moedas</Text>
 
           <TextInput
@@ -457,17 +453,17 @@ const SavingsScreen: React.FC = () => {
           setWithdrawSheetVisible(false);
           setWithdrawAmount('');
         }}
-        title="Sacar da Poupanca"
+        title="Sacar da Poupança"
         height={0.55}
       >
         <View style={styles.sheetContent}>
-          <Text style={styles.sheetLabel}>Voce pode sacar</Text>
+          <Text style={styles.sheetLabel}>Você pode sacar</Text>
           <Text style={styles.sheetBalance}>{formatNumber(availableBalance)} moedas</Text>
 
           <View style={styles.infoBox}>
             <MaterialCommunityIcons name="information" size={20} color={GREEN_THEME.primary} />
             <Text style={styles.infoText}>
-              Esse valor ja inclui os juros que suas moedas renderam! 💰
+              Esse valor já inclui os juros que suas moedas renderam! 💰
             </Text>
           </View>
 
@@ -508,7 +504,7 @@ const SavingsScreen: React.FC = () => {
           setGoalSheetVisible(false);
           setNewGoal('');
         }}
-        title="Editar Meta de Poupanca"
+        title="Editar Meta de Poupança"
         height={0.5}
       >
         <View style={styles.sheetContent}>
