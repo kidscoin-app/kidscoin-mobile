@@ -77,7 +77,27 @@ export const calculateProgress = (current: number, total: number): number => {
 };
 
 /**
- * Formata nível com emoji
+ * Retorna o nome do ícone MaterialCommunityIcons baseado no nível
+ */
+export const getLevelIcon = (level: number): string => {
+  const icons = [
+    'sprout',           // Nível 1 - Broto
+    'leaf',             // Nível 2 - Folha
+    'tree',             // Nível 3 - Árvore
+    'star',             // Nível 4 - Estrela
+    'star-shooting',    // Nível 5 - Estrela cadente
+    'shimmer',          // Nível 6 - Brilhos
+    'auto-fix',         // Nível 7 - Varinha mágica
+    'trophy',           // Nível 8 - Troféu
+    'crown',            // Nível 9 - Coroa
+    'medal',            // Nível 10+ - Medalha
+  ];
+  return icons[Math.min(level - 1, icons.length - 1)] || 'star';
+};
+
+/**
+ * Formata nível com emoji (deprecated - use getLevelIcon)
+ * @deprecated Use getLevelIcon para obter o nome do ícone MaterialCommunityIcons
  */
 export const formatLevel = (level: number): string => {
   const emojis = ['🌱', '🌿', '🌳', '⭐', '🌟', '✨', '💫', '🏆', '👑', '🎖️'];

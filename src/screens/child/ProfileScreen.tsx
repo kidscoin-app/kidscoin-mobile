@@ -181,7 +181,7 @@ const ProfileScreen: React.FC = () => {
           {/* Indicador de Badges */}
           <View style={styles.badgesIndicator}>
             <View style={styles.badgeIndicatorItem}>
-              <Text style={styles.badgeIndicatorEmoji}>🏆</Text>
+              <MaterialCommunityIcons name="trophy" size={28} color="#FFFFFF" />
               <View style={styles.badgeIndicatorCount}>
                 <Text style={styles.badgeIndicatorCountText}>{unlockedBadgesCount}</Text>
               </View>
@@ -221,7 +221,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.statsGrid}>
             {/* Moedas */}
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>🪙</Text>
+              <MaterialCommunityIcons name="hand-coin" size={32} color="#FFC107" />
               <Text style={styles.statValue}>
                 {formatNumber(wallet?.balance || 0)}
               </Text>
@@ -230,7 +230,7 @@ const ProfileScreen: React.FC = () => {
 
             {/* Tarefas */}
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>✅</Text>
+              <MaterialCommunityIcons name="check-circle" size={32} color="#4CAF50" />
               <Text style={styles.statValue}>
                 {completedTasksCount}
               </Text>
@@ -239,7 +239,7 @@ const ProfileScreen: React.FC = () => {
 
             {/* Ganhos */}
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>📈</Text>
+              <MaterialCommunityIcons name="trending-up" size={32} color="#2196F3" />
               <Text style={styles.statValue}>
                 {formatNumber(wallet?.totalEarned || 0)}
               </Text>
@@ -248,7 +248,7 @@ const ProfileScreen: React.FC = () => {
 
             {/* Badges */}
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>🏅</Text>
+              <MaterialCommunityIcons name="medal" size={32} color="#FF9800" />
               <Text style={styles.statValue}>
                 {unlockedBadgesCount}
               </Text>
@@ -260,7 +260,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.achievementsCard}>
             <View style={styles.achievementsHeader}>
               <View style={styles.achievementsTitleRow}>
-                <Text style={styles.achievementsEmoji}>🏆</Text>
+                <MaterialCommunityIcons name="trophy" size={24} color="#9C27B0" />
                 <Text style={styles.achievementsTitle}>Conquistas</Text>
               </View>
               <Text style={styles.achievementsCount}>
@@ -404,7 +404,7 @@ const ProfileScreen: React.FC = () => {
                 {/* Descrição */}
                 <View style={styles.modalInfoRow}>
                   <View style={styles.modalInfoIcon}>
-                    <Text style={styles.modalInfoEmoji}>📖</Text>
+                    <MaterialCommunityIcons name="text-box" size={24} color="#9C27B0" />
                   </View>
                   <View style={styles.modalInfoContent}>
                     <Text style={styles.modalInfoLabel}>Descricao</Text>
@@ -415,7 +415,7 @@ const ProfileScreen: React.FC = () => {
                 {/* Como Conquistar */}
                 <View style={styles.modalInfoRow}>
                   <View style={styles.modalInfoIcon}>
-                    <Text style={styles.modalInfoEmoji}>🎯</Text>
+                    <MaterialCommunityIcons name="bullseye-arrow" size={24} color="#9C27B0" />
                   </View>
                   <View style={styles.modalInfoContent}>
                     <Text style={styles.modalInfoLabel}>Como Conquistar</Text>
@@ -426,7 +426,7 @@ const ProfileScreen: React.FC = () => {
                 {/* XP Bônus */}
                 <View style={styles.modalInfoRow}>
                   <View style={styles.modalInfoIcon}>
-                    <Text style={styles.modalInfoEmoji}>⭐</Text>
+                    <MaterialCommunityIcons name="star" size={24} color="#FFC107" />
                   </View>
                   <View style={styles.modalInfoContent}>
                     <Text style={styles.modalInfoLabel}>Bonus de XP</Text>
@@ -438,7 +438,7 @@ const ProfileScreen: React.FC = () => {
                 {selectedBadge.unlocked && selectedBadge.unlockedAt && (
                   <View style={styles.modalInfoRow}>
                     <View style={styles.modalInfoIcon}>
-                      <Text style={styles.modalInfoEmoji}>📅</Text>
+                      <MaterialCommunityIcons name="calendar-check" size={24} color="#4CAF50" />
                     </View>
                     <View style={styles.modalInfoContent}>
                       <Text style={styles.modalInfoLabel}>Desbloqueada em</Text>

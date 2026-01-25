@@ -52,7 +52,7 @@ const LoginScreen: React.FC = () => {
                 <MaterialCommunityIcons name="account-tie" size={32} color={COLORS.parent.primary} />
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>Sou Pai/Mae</Text>
+                <Text style={styles.optionTitle}>Sou Pai/Mãe</Text>
                 <Text style={styles.optionDescription}>
                   Gerenciar tarefas, crianças e recompensas
                 </Text>
