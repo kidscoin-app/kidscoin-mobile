@@ -83,7 +83,7 @@ const ParentLoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Ola, Pai/Mae!</Text>
+          <Text style={styles.cardTitle}>Olá, Pai/Mae!</Text>
           <Text style={styles.cardSubtitle}>Digite seu email e senha</Text>
 
           <TextInput

@@ -41,7 +41,7 @@ const LoginScreen: React.FC = () => {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Bem-vindo de volta!</Text>
-          <Text style={styles.cardSubtitle}>Quem esta usando o app?</Text>
+          <Text style={styles.cardSubtitle}>Quem está usando o app?</Text>
 
           <TouchableOpacity
             onPress={() => navigation.navigate('ParentLogin')}

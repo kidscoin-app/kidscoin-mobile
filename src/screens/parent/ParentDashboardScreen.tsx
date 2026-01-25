@@ -238,7 +238,7 @@ const ParentDashboardScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greeting}>Ola, {user?.fullName}!</Text>
+            <Text style={styles.greeting}>Olá, {user?.fullName}!</Text>
             <Text style={styles.subtitle}>Painel de Controle da Família</Text>
           </View>
           <TouchableOpacity
