@@ -296,7 +296,7 @@ const ParentDashboardScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleContainer}>
             <MaterialCommunityIcons name="auto-fix" size={20} color={COLORS.parent.primary} />
-            <Text style={styles.sectionTitle}>Açoes Necessárias</Text>
+            <Text style={styles.sectionTitle}>Ações Necessárias</Text>
             {pendingActions.length > 0 && (
               <Badge size={22} style={styles.countBadge}>
                 {pendingActions.length}
