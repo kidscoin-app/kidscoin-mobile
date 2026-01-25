@@ -122,7 +122,7 @@ const ManageChildrenScreen: React.FC = () => {
    */
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
-      setError('Preencha o nome da crianca');
+      setError('Preencha o nome da criança');
       return false;
     }
 
@@ -312,14 +312,14 @@ const ManageChildrenScreen: React.FC = () => {
       <BottomSheet
         visible={showAddSheet}
         onClose={() => setShowAddSheet(false)}
-        title="Cadastrar Crianca"
+        title="Cadastrar Criança"
         height={0.75}
       >
         {/* Info Box */}
         <View style={styles.infoBox}>
           <MaterialCommunityIcons name="lightbulb-outline" size={20} color={COLORS.parent.primary} />
           <Text style={styles.infoText}>
-            A crianca usara o <Text style={styles.infoTextBold}>username</Text> e o{' '}
+            A criança usará o <Text style={styles.infoTextBold}>username</Text> e o{' '}
             <Text style={styles.infoTextBold}>PIN</Text> para fazer login no app.
           </Text>
         </View>
@@ -329,7 +329,7 @@ const ManageChildrenScreen: React.FC = () => {
           onChangeText={setFullName}
           mode="outlined"
           style={styles.input}
-          placeholder="Nome da Crianca"
+          placeholder="Nome da Criança"
           left={<TextInput.Icon icon="account-outline" />}
           outlineColor={COLORS.common.border}
           activeOutlineColor={COLORS.parent.primary}
@@ -390,7 +390,7 @@ const ManageChildrenScreen: React.FC = () => {
         >
           <MaterialCommunityIcons name="plus" size={20} color="#fff" />
           <Text style={styles.createButtonText}>
-            {createChild.isPending ? 'Cadastrando...' : 'Cadastrar Crianca'}
+            {createChild.isPending ? 'Cadastrando...' : 'Cadastrar Criança'}
           </Text>
         </TouchableOpacity>
       </BottomSheet>
@@ -488,7 +488,7 @@ const ManageChildrenScreen: React.FC = () => {
       {/* Dialog de exclusao de crianca */}
       <Portal>
         <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
-          <Dialog.Title>Excluir Crianca</Dialog.Title>
+          <Dialog.Title>Excluir Criança</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
               Tem certeza que deseja excluir <Text style={styles.dialogChildName}>{deletingChild?.fullName}</Text>?

@@ -54,7 +54,7 @@ const LoginScreen: React.FC = () => {
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Sou Pai/Mae</Text>
                 <Text style={styles.optionDescription}>
-                  Gerenciar tarefas, criancas e recompensas
+                  Gerenciar tarefas, crianças e recompensas
                 </Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.common.textLight} />
@@ -70,7 +70,7 @@ const LoginScreen: React.FC = () => {
                 <MaterialCommunityIcons name="human-child" size={32} color={COLORS.child.primary} />
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>Sou Crianca</Text>
+                <Text style={styles.optionTitle}>Sou Criança</Text>
                 <Text style={styles.optionDescription}>
                   Ver minhas tarefas e recompensas
                 </Text>

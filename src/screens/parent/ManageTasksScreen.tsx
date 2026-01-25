@@ -222,7 +222,7 @@ const ManageTasksScreen: React.FC = () => {
     }
 
     if (selectedChildren.length === 0) {
-      setError('Selecione pelo menos uma crianca');
+      setError('Selecione pelo menos uma criança');
       return false;
     }
 
@@ -681,7 +681,7 @@ const ManageTasksScreen: React.FC = () => {
 
         <Text style={styles.formLabel}>Atribuir para</Text>
         {children.length === 0 ? (
-          <Text style={styles.emptyText}>Cadastre criancas primeiro na aba "Criancas"</Text>
+          <Text style={styles.emptyText}>Cadastre crianças primeiro na aba "Crianças"</Text>
         ) : (
           <View style={styles.childrenList}>
             {children.map((child) => {
