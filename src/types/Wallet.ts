@@ -32,6 +32,8 @@ export interface Savings {
   childId: string;
   childName: string;
   balance: number;
+  availableBalance: number;
+  pendingInterest: number;
   totalDeposited: number;
   totalEarned: number;
   lastDepositAt: string | null;

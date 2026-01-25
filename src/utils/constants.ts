@@ -16,25 +16,50 @@ export const STORAGE_KEYS = {
 export const COLORS = {
   // Para Crianças
   child: {
-    primary: '#6366F1',
-    secondary: '#EC4899',
-    success: '#10B981',
-    warning: '#F59E0B',
-    background: '#F8FAFC',
+    primary: '#9B7BB8',      // Roxo principal (era #6366F1)
+    primaryDark: '#7A5A9E',  // Roxo escuro para hover/pressed
+    primaryLight: '#C4A8D8', // Roxo claro para backgrounds
+    secondary: '#F5A3B5',    // Rosa (era #EC4899)
+    secondaryLight: '#FFD4DC', // Rosa claro
+    success: '#6BCB77',      // Verde sucesso (era #10B981)
+    successLight: '#A8E6A3', // Verde claro
+    warning: '#FFD93D',      // Dourado/Gold (era #F59E0B)
+    background: '#FFF9F5',   // Cream (era #F8FAFC)
+    backgroundLight: '#F7F5F9', // Cinza lavanda
   },
+
   // Para Pais
   parent: {
-    primary: '#3B82F6',
-    secondary: '#8B5CF6',
-    background: '#F8FAFC',
+    primary: '#7A5A9E',      // Roxo mais escuro (era #3B82F6)
+    secondary: '#9B7BB8',    // Roxo médio (era #8B5CF6)
+    background: '#FFF9F5',   // Cream
   },
+
   // Comuns
   common: {
-    text: '#1F2937',
-    textLight: '#6B7280',
+    text: '#3D3A40',         // Texto escuro com tom roxo (era #1F2937)
+    textLight: '#6B6670',    // Texto secundário
+    textMuted: '#9B9699',    // Texto bem suave
     white: '#FFFFFF',
-    error: '#EF4444',
-    border: '#E5E7EB',
+    error: '#EF4444',        // Mantém o vermelho
+    border: '#E8E4EC',       // Borda com tom roxo (era #E5E7EB)
+    cream: '#FFF9F5',        // Background principal
+  },
+
+  // Cores de Status (novas)
+  status: {
+    pending: '#FFD93D',      // Amarelo/Dourado - aguardando
+    waiting: '#6B99FF',      // Azul - esperando aprovação
+    approved: '#6BCB77',     // Verde - aprovado
+    rejected: '#EF4444',     // Vermelho - rejeitado
+  },
+
+  // Gamificação (novas)
+  gamification: {
+    gold: '#FFD93D',         // Moedas, conquistas
+    xp: '#9B7BB8',           // Barra de XP
+    streak: '#FF6B35',       // Cor do streak (laranja/fogo)
+    level: '#7A5A9E',        // Badge de nível
   },
 };
 

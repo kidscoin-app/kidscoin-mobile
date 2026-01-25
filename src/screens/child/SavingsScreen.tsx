@@ -1,28 +1,32 @@
-/**
- * Tela de Poupança (Child)
- * Migrado para React Query
- */
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { Keyboard, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Chip,
-  IconButton,
-  Modal,
-  Portal,
-  ProgressBar,
-  Snackbar,
-  Text,
-  TextInput,
-} from 'react-native-paper';
+  Keyboard,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+} from 'react-native';
+import { ActivityIndicator, Snackbar, Text, TextInput } from 'react-native-paper';
+import { BottomSheet } from '../../components';
 import { COLORS } from '../../utils/constants';
-import { useSavings, useWallet, useDepositSavings, useWithdrawSavings } from '../../hooks';
+import { useSavings, useWallet, useDepositSavings, useWithdrawSavings, useRefreshOnFocus } from '../../hooks';
+
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
 
 const SAVINGS_GOAL_KEY = '@kidscoin:savingsGoal';
+
+// Cores do tema verde
+const GREEN_THEME = {
+  primary: '#7BC67E',
+  light: '#E8F5E9',
+  dark: '#5BA85E',
+  accent: '#8FD392',
+};
 
 const SavingsScreen: React.FC = () => {
   // React Query hooks
@@ -38,14 +42,18 @@ const SavingsScreen: React.FC = () => {
     refetch: refetchWallet,
   } = useWallet();
 
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchSavings);
+  useRefreshOnFocus(refetchWallet);
+
   const loading = loadingSavings || loadingWallet;
 
-  // Modais
-  const [depositModalVisible, setDepositModalVisible] = useState(false);
-  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  // Bottom Sheets
+  const [depositSheetVisible, setDepositSheetVisible] = useState(false);
+  const [withdrawSheetVisible, setWithdrawSheetVisible] = useState(false);
+  const [goalSheetVisible, setGoalSheetVisible] = useState(false);
 
-  // Valores dos modais
+  // Valores dos formulários
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [newGoal, setNewGoal] = useState('');
@@ -54,7 +62,7 @@ const SavingsScreen: React.FC = () => {
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'success' });
 
   // Meta de poupança (editável)
-  const [savingsGoal, setSavingsGoal] = useState(500);
+  const [savingsGoal, setSavingsGoal] = useState(15000000);
 
   // Refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -62,9 +70,9 @@ const SavingsScreen: React.FC = () => {
   // Mutations
   const depositSavings = useDepositSavings({
     onSuccess: (_, variables) => {
-      setDepositModalVisible(false);
+      setDepositSheetVisible(false);
       setDepositAmount('');
-      showSnackbar(`${variables.amount} moedas depositadas na poupança!`, 'success');
+      showSnackbar(`${variables.amount.toLocaleString('pt-BR')} moedas depositadas!`, 'success');
     },
     onError: (error: any) => {
       showSnackbar(error.response?.data?.message || 'Erro ao depositar', 'error');
@@ -73,13 +81,9 @@ const SavingsScreen: React.FC = () => {
 
   const withdrawSavings = useWithdrawSavings({
     onSuccess: (_, variables) => {
-      const bonus = Math.round(variables.amount * (getTimeBonus() / 100));
-      setWithdrawModalVisible(false);
+      setWithdrawSheetVisible(false);
       setWithdrawAmount('');
-      showSnackbar(
-        bonus > 0 ? `Sacado ${variables.amount} moedas + ${bonus} de bônus!` : `${variables.amount} moedas sacadas!`,
-        'success'
-      );
+      showSnackbar(`${variables.amount.toLocaleString('pt-BR')} moedas sacadas!`, 'success');
     },
     onError: (error: any) => {
       showSnackbar(error.response?.data?.message || 'Erro ao sacar', 'error');
@@ -115,11 +119,11 @@ const SavingsScreen: React.FC = () => {
   const handleUpdateGoal = async () => {
     Keyboard.dismiss();
 
-    const goalValue = parseInt(newGoal);
+    const goalValue = parseInt(newGoal.replace(/\D/g, ''));
     const currentBalance = savings?.balance || 0;
 
     if (!goalValue || goalValue <= 0) {
-      showSnackbar('Digite um valor válido', 'error');
+      showSnackbar('Digite um valor valido', 'error');
       return;
     }
 
@@ -131,9 +135,9 @@ const SavingsScreen: React.FC = () => {
     try {
       await AsyncStorage.setItem(SAVINGS_GOAL_KEY, goalValue.toString());
       setSavingsGoal(goalValue);
-      setGoalModalVisible(false);
+      setGoalSheetVisible(false);
       setNewGoal('');
-      showSnackbar('Meta atualizada com sucesso!', 'success');
+      showSnackbar('Meta atualizada!', 'success');
     } catch (error) {
       console.error('Erro ao salvar meta:', error);
       showSnackbar('Erro ao salvar meta', 'error');
@@ -151,36 +155,11 @@ const SavingsScreen: React.FC = () => {
     return Math.round(getGoalProgress() * 100);
   };
 
-  // Calcula dias guardados (dias desde o último depósito)
-  const getDaysSaved = (): number => {
-    if (!savings?.lastDepositAt) return 0;
-    const lastDeposit = new Date(savings.lastDepositAt);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDeposit.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  // Calcula bônus por tempo
-  const getTimeBonus = (): number => {
-    const days = getDaysSaved();
-    if (days >= 30) return 10;
-    if (days >= 7) return 2;
-    return 0;
-  };
-
-  // Simula rendimento composto
-  const simulateInterest = (weeks: number): number => {
-    if (!savings) return 0;
-    const weeklyRate = 0.02; // 2%
-    return Math.round(savings.balance * Math.pow(1 + weeklyRate, weeks) - savings.balance);
-  };
-
   // Depositar
   const handleDeposit = () => {
-    const amount = parseInt(depositAmount);
+    const amount = parseInt(depositAmount.replace(/\D/g, ''));
     if (!amount || amount <= 0) {
-      showSnackbar('Digite um valor válido', 'error');
+      showSnackbar('Digite um valor valido', 'error');
       return;
     }
     if (!wallet || amount > wallet.balance) {
@@ -193,197 +172,250 @@ const SavingsScreen: React.FC = () => {
 
   // Sacar
   const handleWithdraw = () => {
-    const amount = parseInt(withdrawAmount);
+    const amount = parseInt(withdrawAmount.replace(/\D/g, ''));
     if (!amount || amount <= 0) {
-      showSnackbar('Digite um valor válido', 'error');
+      showSnackbar('Digite um valor valido', 'error');
       return;
     }
-    if (!savings || amount > savings.balance) {
-      showSnackbar('Saldo insuficiente na poupança', 'error');
+    if (!savings || amount > savings.availableBalance) {
+      showSnackbar('Você não tem moedas suficientes na poupança', 'error');
       return;
     }
 
     withdrawSavings.mutate({ amount });
   };
 
+  const formatNumber = (num: number): string => {
+    return num.toLocaleString('pt-BR');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.child.primary} />
+        <ActivityIndicator size="large" color={GREEN_THEME.primary} />
         <Text style={styles.loadingText}>Carregando poupança...</Text>
       </View>
     );
   }
 
+  const balance = savings?.balance || 0;
+  const availableBalance = savings?.availableBalance || 0;
+  const pendingInterest = savings?.pendingInterest || 0;
+
   return (
-    <>
-      <ScrollView
-        style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-      {/* Card Principal - Saldo */}
-      <Card style={styles.balanceCard}>
-        <Card.Content>
-          <View style={styles.balanceHeader}>
-            <MaterialCommunityIcons name="piggy-bank" size={48} color="#4CAF50" />
-            <View style={styles.balanceInfo}>
-              <Text style={styles.balanceLabel}>Saldo na Poupança</Text>
-              <Text style={styles.balanceValue}>{savings?.balance || 0}</Text>
-              <Text style={styles.balanceSubtext}>moedas</Text>
-            </View>
-          </View>
+    <View style={styles.container}>
+      <StatusBar backgroundColor={GREEN_THEME.primary} barStyle="light-content" />
 
-          {/* Estatísticas */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="cash-plus" size={24} color="#2196F3" />
-              <Text style={styles.statValue}>{savings?.totalDeposited || 0}</Text>
-              <Text style={styles.statLabel}>Total Depositado</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="trending-up" size={24} color="#FF9800" />
-              <Text style={styles.statValue}>{savings?.totalEarned || 0}</Text>
-              <Text style={styles.statLabel}>Total Rendido</Text>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
+      {/* Header Verde */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Minha Poupança</Text>
+          {/* <MaterialCommunityIcons name="piggy-bank" size={48} color="#fff" style={styles.headerIcon} /> */}
+        </View>
 
-      {/* Botões de Ação */}
-      <View style={styles.actionsContainer}>
-        <Button
-          mode="contained"
-          icon="cash-plus"
-          onPress={() => setDepositModalVisible(true)}
-          style={styles.depositButton}
-          buttonColor="#4CAF50"
-          contentStyle={styles.buttonContent}
-        >
-          Depositar
-        </Button>
-        <Button
-          mode="contained"
-          icon="cash-minus"
-          onPress={() => setWithdrawModalVisible(true)}
-          style={styles.withdrawButton}
-          buttonColor="#FF9800"
-          contentStyle={styles.buttonContent}
-        >
-          Sacar
-        </Button>
+        <View style={styles.balanceSection}>
+          <Text style={styles.balanceLabel}>Você tem agora</Text>
+          <Text style={styles.balanceValue}>{formatNumber(availableBalance)}</Text>
+          <Text style={styles.balanceSubtext}>moedas disponíveis</Text>
+
+          {/* Detalhes do saldo */}
+          <View style={styles.balanceDetails}>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="wallet" size={18} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.balanceDetailText}>Você guardou: {formatNumber(balance)}</Text>
+            </View>
+            {pendingInterest > 0 && (
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="trending-up" size={18} color="#FFD54F" />
+                <Text style={styles.bonusText}>Bônus: +{formatNumber(pendingInterest)}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Botões de Ação - dentro do header */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.depositButton}
+            onPress={() => setDepositSheetVisible(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="arrow-down-circle-outline" size={24} color={GREEN_THEME.dark} />
+            <Text style={styles.depositButtonText}>Depositar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.withdrawButton}
+            onPress={() => setWithdrawSheetVisible(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="arrow-up-circle-outline" size={24} color="#fff" />
+            <Text style={styles.withdrawButtonText}>Sacar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Card de Metas */}
-      <Card style={styles.goalCard}>
-        <Card.Content>
-          <View style={styles.goalHeader}>
-            <MaterialCommunityIcons name="target" size={32} color="#9C27B0" />
-            <Text style={styles.goalTitle}>Meta de Poupança</Text>
-            <IconButton
-              icon="pencil"
-              size={20}
-              iconColor="#9C27B0"
-              onPress={() => {
-                setNewGoal(savingsGoal.toString());
-                setGoalModalVisible(true);
-              }}
-              style={styles.editGoalButton}
-            />
-          </View>
-          <Text style={styles.goalAmount}>
-            {savings?.balance || 0} / {savingsGoal} moedas
-          </Text>
-          <ProgressBar progress={getGoalProgress()} color="#4CAF50" style={styles.progressBar} />
-          <Text style={styles.goalPercentage}>{getGoalPercentage()}% alcançado</Text>
-          {getGoalPercentage() >= 100 ? (
-            <View style={styles.goalAchieved}>
-              <MaterialCommunityIcons name="party-popper" size={32} color="#FFD700" />
-              <Text style={styles.goalAchievedText}>Parabéns! Você atingiu sua meta! 🎉</Text>
-            </View>
-          ) : (
-            <Text style={styles.goalMessage}>
-              Faltam {savingsGoal - (savings?.balance || 0)} moedas para atingir sua meta!
-            </Text>
-          )}
-        </Card.Content>
-      </Card>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
 
-      {/* Simulador de Rendimento */}
-      <Card style={styles.simulatorCard}>
-        <Card.Content>
-          <View style={styles.simulatorHeader}>
-            <MaterialCommunityIcons name="calculator" size={32} color="#00BCD4" />
-            <Text style={styles.simulatorTitle}>Quanto vai render?</Text>
-          </View>
-          <Text style={styles.simulatorSubtitle}>Sua poupança rende 2% toda semana! 📈</Text>
-          <View style={styles.simulationList}>
-            <View style={styles.simulationItem}>
-              <Text style={styles.simulationPeriod}>Em 1 semana:</Text>
-              <Text style={styles.simulationValue}>+{simulateInterest(1)} moedas</Text>
-            </View>
-            <View style={styles.simulationItem}>
-              <Text style={styles.simulationPeriod}>Em 1 mês (4 semanas):</Text>
-              <Text style={styles.simulationValue}>+{simulateInterest(4)} moedas</Text>
-            </View>
-            <View style={styles.simulationItem}>
-              <Text style={styles.simulationPeriod}>Em 3 meses (12 semanas):</Text>
-              <Text style={styles.simulationValue}>+{simulateInterest(12)} moedas</Text>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Card de Bônus por Tempo */}
-      <Card style={styles.bonusCard}>
-        <Card.Content>
-          <View style={styles.bonusHeader}>
-            <MaterialCommunityIcons name="clock-fast" size={32} color="#FF5722" />
-            <Text style={styles.bonusTitle}>Bônus por Tempo</Text>
-          </View>
-          <Text style={styles.bonusSubtitle}>Quanto mais tempo guardar, maior o bônus no saque!</Text>
-          <View style={styles.bonusChips}>
-            <Chip
-              icon="calendar-week"
-              mode="outlined"
-              style={[styles.bonusChip, getDaysSaved() >= 7 && getDaysSaved() < 30 && styles.bonusChipActive]}
-            >
-              7 dias: +2%
-            </Chip>
-            <Chip
-              icon="calendar-month"
-              mode="outlined"
-              style={[styles.bonusChip, getDaysSaved() >= 30 && styles.bonusChipActive]}
-            >
-              30 dias: +10%
-            </Chip>
-          </View>
-          {savings?.lastDepositAt ? (
-            <View style={styles.currentBonus}>
-              <Text style={styles.currentBonusText}>
-                💰 Dias guardados: <Text style={styles.currentBonusBold}>{getDaysSaved()} dias</Text>
+        {/* Card de Rendimento */}
+        <View style={styles.earningsCard}>
+          {pendingInterest > 0 ? (
+            <>
+              <View style={styles.earningsHeader}>
+                <MaterialCommunityIcons name="shimmer" size={40} color={GREEN_THEME.primary} />
+                <View style={styles.earningsInfo}>
+                  <Text style={styles.earningsValue}>+{formatNumber(pendingInterest)} moedas</Text>
+                  <Text style={styles.earningsLabel}>cresceram sozinhas! 🌱</Text>
+                </View>
+              </View>
+              <Text style={styles.earningsExplanation}>
+                Das suas {formatNumber(availableBalance)} moedas, {formatNumber(pendingInterest)} foram de bônus que sua poupança gerou!
               </Text>
-              <Text style={styles.currentBonusText}>
-                🎁 Bônus atual: <Text style={styles.currentBonusBold}>{getTimeBonus()}%</Text>
-              </Text>
-            </View>
+            </>
           ) : (
-            <Text style={styles.noBonusText}>Faça um depósito para começar!</Text>
+            <>
+              <View style={styles.earningsHeader}>
+                <MaterialCommunityIcons name="sprout" size={40} color="#999" />
+                <View style={styles.earningsInfo}>
+                  <Text style={styles.earningsValueEmpty}>Ainda sem bônus</Text>
+                  <Text style={styles.earningsLabelEmpty}>Sua poupança esta crescendo! 🌱</Text>
+                </View>
+              </View>
+              <Text style={styles.earningsExplanation}>
+                Continue guardando suas moedas e logo elas vão comecar a crescer sozinhas!
+              </Text>
+            </>
           )}
-        </Card.Content>
-      </Card>
+        </View>
 
-      {/* Modal de Depósito */}
-      <Portal>
-        <Modal
-          visible={depositModalVisible}
-          onDismiss={() => setDepositModalVisible(false)}
-          contentContainerStyle={styles.modal}
+        {/* Card de Meta de Poupança */}
+        <TouchableOpacity
+          style={styles.goalCard}
+          onPress={() => {
+            setNewGoal(savingsGoal.toString());
+            setGoalSheetVisible(true);
+          }}
+          activeOpacity={0.8}
         >
-          <Text style={styles.modalTitle}>Depositar na Poupança</Text>
-          <Text style={styles.modalSubtitle}>
-            Saldo disponível: <Text style={styles.modalBalance}>{wallet?.balance || 0} moedas</Text>
+          <View style={styles.goalHeader}>
+            <MaterialCommunityIcons name="target" size={24} color={COLORS.child.primary} />
+            <Text style={styles.goalTitle}>Meta de Poupança</Text>
+          </View>
+          <View style={styles.goalProgressRow}>
+            <Text style={styles.goalProgressLabel}>Progresso</Text>
+            <Text style={styles.goalPercentage}>{getGoalPercentage()}%</Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <View style={[styles.progressBar, { width: `${getGoalPercentage()}%` }]} />
+            <View style={[styles.pigIndicator, { left: `${Math.min(getGoalPercentage(), 95)}%` }]}>
+              <Text style={styles.pigEmoji}>🐷</Text>
+            </View>
+          </View>
+          <Text style={styles.goalText}>
+            {formatNumber(balance)} / {formatNumber(savingsGoal)} moedas
           </Text>
+        </TouchableOpacity>
+
+        {/* Card Quanto vai render */}
+        <View style={styles.projectionCard}>
+          <View style={styles.projectionHeader}>
+            <MaterialCommunityIcons name="calculator-variant" size={24} color={GREEN_THEME.primary} />
+            <Text style={styles.projectionTitle}>Quanto vai crescer?</Text>
+          </View>
+          <Text style={styles.projectionSubtitle}>
+            Suas moedas crescem <Text style={styles.projectionHighlight}>TODOS OS DIAS</Text>! E quanto mais tempo guardadas, mais rendem! 📈
+          </Text>
+          <View style={styles.projectionList}>
+            <View style={styles.projectionItem}>
+              <View style={styles.projectionLeft}>
+                <MaterialCommunityIcons name="calendar-week" size={20} color="#666" />
+                <Text style={styles.projectionPeriod}>1 semana</Text>
+              </View>
+              <Text style={styles.projectionValue}>≈ +3%</Text>
+            </View>
+            <View style={styles.projectionItem}>
+              <View style={styles.projectionLeft}>
+                <MaterialCommunityIcons name="calendar-month" size={20} color="#666" />
+                <Text style={styles.projectionPeriod}>1 mês</Text>
+              </View>
+              <Text style={styles.projectionValue}>≈ +14%</Text>
+            </View>
+            <View style={styles.projectionItem}>
+              <View style={styles.projectionLeft}>
+                <MaterialCommunityIcons name="calendar-multiselect" size={20} color="#666" />
+                <Text style={styles.projectionPeriod}>3 meses</Text>
+              </View>
+              <Text style={styles.projectionValue}>≈ +46%</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Card Como Funciona */}
+        <View style={styles.bonusCard}>
+          <View style={styles.bonusHeader}>
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={24} color={GREEN_THEME.primary} />
+            <Text style={styles.bonusTitle}>Como sua poupança cresce?</Text>
+          </View>
+
+          {/* Rendimento Diário */}
+          <View style={styles.howItWorksItem}>
+            <View style={styles.howItWorksIcon}>
+              <MaterialCommunityIcons name="calendar-today" size={20} color={GREEN_THEME.primary} />
+            </View>
+            <View style={styles.howItWorksText}>
+              <Text style={styles.howItWorksTitle}>Todos os dias! 🌟</Text>
+              <Text style={styles.howItWorksDescription}>
+                Suas moedas crescem um pouquinho TODO DIA automaticamente!
+              </Text>
+            </View>
+          </View>
+
+          {/* Sistema Progressivo */}
+          <View style={styles.howItWorksItem}>
+            <View style={styles.howItWorksIcon}>
+              <MaterialCommunityIcons name="trending-up" size={20} color="#FF9800" />
+            </View>
+            <View style={styles.howItWorksText}>
+              <Text style={styles.howItWorksTitle}>Quanto mais tempo, mais rende! 📈</Text>
+              <Text style={styles.howItWorksDescription}>
+                Primeiros 6 dias: Rende menos{'\n'}
+                Depois de 1 semana: Rende mais!{'\n'}
+                Depois de 1 mês: Rende ainda mais!!{'\n'}
+                Depois de 3 meses: Rende MUITO MAIS!!!
+              </Text>
+            </View>
+          </View>
+
+          {/* Explicação Simples */}
+          <View style={styles.magicCard}>
+            <Text style={styles.magicEmoji}>✨</Text>
+            <Text style={styles.magicText}>
+              E o melhor: você não precisa fazer NADA! Suas moedas crescem sozinhas enquanto você dorme! 😴
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      {/* Bottom Sheet - Depositar */}
+      <BottomSheet
+        visible={depositSheetVisible}
+        onClose={() => {
+          setDepositSheetVisible(false);
+          setDepositAmount('');
+        }}
+        title="Depositar na Poupança"
+        height={0.5}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.sheetLabel}>Saldo disponível na carteira</Text>
+          <Text style={styles.sheetBalance}>{formatNumber(wallet?.balance || 0)} moedas</Text>
+
           <TextInput
             label="Valor a depositar"
             value={depositAmount}
@@ -391,50 +423,50 @@ const SavingsScreen: React.FC = () => {
             keyboardType="number-pad"
             mode="outlined"
             style={styles.input}
-            left={<TextInput.Icon icon="currency-usd" />}
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={GREEN_THEME.primary}
+            left={<TextInput.Icon icon="hand-coin" />}
           />
-          <View style={styles.modalButtons}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setDepositModalVisible(false);
-                setDepositAmount('');
-              }}
-              style={styles.modalButton}
-            >
-              Cancelar
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleDeposit}
-              style={styles.modalButton}
-              buttonColor="#4CAF50"
-              loading={depositSavings.isPending}
-              disabled={depositSavings.isPending}
-            >
-              Depositar
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
 
-      {/* Modal de Saque */}
-      <Portal>
-        <Modal
-          visible={withdrawModalVisible}
-          onDismiss={() => setWithdrawModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Sacar da Poupança</Text>
-          <Text style={styles.modalSubtitle}>
-            Saldo na poupança: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
-          </Text>
-          {getTimeBonus() > 0 && (
-            <View style={styles.bonusBadge}>
-              <MaterialCommunityIcons name="gift" size={20} color="#4CAF50" />
-              <Text style={styles.bonusBadgeText}>Você vai receber +{getTimeBonus()}% de bônus! 🎁</Text>
-            </View>
-          )}
+          <TouchableOpacity
+            style={[styles.sheetButton, styles.depositSheetButton]}
+            onPress={handleDeposit}
+            disabled={depositSavings.isPending}
+            activeOpacity={0.8}
+          >
+            {depositSavings.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="arrow-down-circle" size={24} color="#fff" />
+                <Text style={styles.sheetButtonText}>Depositar</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
+      {/* Bottom Sheet - Sacar */}
+      <BottomSheet
+        visible={withdrawSheetVisible}
+        onClose={() => {
+          setWithdrawSheetVisible(false);
+          setWithdrawAmount('');
+        }}
+        title="Sacar da Poupança"
+        height={0.55}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.sheetLabel}>Você pode sacar</Text>
+          <Text style={styles.sheetBalance}>{formatNumber(availableBalance)} moedas</Text>
+
+          <View style={styles.infoBox}>
+            <MaterialCommunityIcons name="information" size={20} color={GREEN_THEME.primary} />
+            <Text style={styles.infoText}>
+              Esse valor já inclui os juros que suas moedas renderam! 💰
+            </Text>
+          </View>
+
           <TextInput
             label="Valor a sacar"
             value={withdrawAmount}
@@ -442,59 +474,50 @@ const SavingsScreen: React.FC = () => {
             keyboardType="number-pad"
             mode="outlined"
             style={styles.input}
-            left={<TextInput.Icon icon="currency-usd" />}
+            outlineColor={COLORS.common.border}
+            activeOutlineColor="#FFC107"
+            left={<TextInput.Icon icon="hand-coin" />}
           />
-          {withdrawAmount && parseInt(withdrawAmount) > 0 && (
-            <Text style={styles.withdrawPreview}>
-              Você receberá: {parseInt(withdrawAmount) + Math.round(parseInt(withdrawAmount) * (getTimeBonus() / 100))}{' '}
-              moedas
-            </Text>
-          )}
-          <View style={styles.modalButtons}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setWithdrawModalVisible(false);
-                setWithdrawAmount('');
-              }}
-              style={styles.modalButton}
-            >
-              Cancelar
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleWithdraw}
-              style={styles.modalButton}
-              buttonColor="#FF9800"
-              loading={withdrawSavings.isPending}
-              disabled={withdrawSavings.isPending}
-            >
-              Sacar
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
 
-      {/* Modal de Editar Meta */}
-      <Portal>
-        <Modal
-          visible={goalModalVisible}
-          onDismiss={() => setGoalModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Editar Meta de Poupança</Text>
-          <Text style={styles.modalSubtitle}>
-            Saldo atual: <Text style={styles.modalBalance}>{savings?.balance || 0} moedas</Text>
-          </Text>
-          <Text style={styles.modalSubtitle}>
-            Meta atual: <Text style={styles.modalBalance}>{savingsGoal} moedas</Text>
-          </Text>
+          <TouchableOpacity
+            style={[styles.sheetButton, styles.withdrawSheetButton]}
+            onPress={handleWithdraw}
+            disabled={withdrawSavings.isPending}
+            activeOpacity={0.8}
+          >
+            {withdrawSavings.isPending ? (
+              <ActivityIndicator size="small" color="#333" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="arrow-up-circle" size={24} color="#333" />
+                <Text style={[styles.sheetButtonText, styles.withdrawSheetButtonText]}>Sacar</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
+      {/* Bottom Sheet - Editar Meta */}
+      <BottomSheet
+        visible={goalSheetVisible}
+        onClose={() => {
+          setGoalSheetVisible(false);
+          setNewGoal('');
+        }}
+        title="Editar Meta de Poupança"
+        height={0.5}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.sheetLabel}>Meta atual</Text>
+          <Text style={styles.sheetBalance}>{formatNumber(savingsGoal)} moedas</Text>
+
           <View style={styles.warningBox}>
             <MaterialCommunityIcons name="information" size={20} color="#FF9800" />
             <Text style={styles.warningText}>
-              A nova meta deve ser maior ou igual ao saldo atual da poupança ({savings?.balance || 0} moedas)
+              A nova meta deve ser maior ou igual ao saldo atual ({formatNumber(balance)} moedas)
             </Text>
           </View>
+
           <TextInput
             label="Nova meta"
             value={newGoal}
@@ -502,30 +525,21 @@ const SavingsScreen: React.FC = () => {
             keyboardType="number-pad"
             mode="outlined"
             style={styles.input}
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={COLORS.child.primary}
             left={<TextInput.Icon icon="target" />}
-            placeholder={`Mínimo: ${savings?.balance || 0}`}
           />
-          <View style={styles.modalButtons}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setGoalModalVisible(false);
-                setNewGoal('');
-              }}
-              style={styles.modalButton}
-            >
-              Cancelar
-            </Button>
-            <Button mode="contained" onPress={handleUpdateGoal} style={styles.modalButton} buttonColor="#6366F1">
-              Salvar
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
 
-      {/* Espaçamento final */}
-      <View style={styles.bottomSpacer} />
-      </ScrollView>
+          <TouchableOpacity
+            style={[styles.sheetButton, styles.goalSheetButton]}
+            onPress={handleUpdateGoal}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="check" size={24} color="#fff" />
+            <Text style={styles.sheetButtonText}>Salvar Meta</Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
 
       {/* Snackbar */}
       <Snackbar
@@ -533,25 +547,25 @@ const SavingsScreen: React.FC = () => {
         onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
         duration={3000}
         style={{
-          backgroundColor: snackbar.type === 'success' ? '#4CAF50' : '#f44336',
+          backgroundColor: snackbar.type === 'success' ? GREEN_THEME.primary : '#f44336',
         }}
       >
         {snackbar.message}
       </Snackbar>
-    </>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.child.background,
+    backgroundColor: COLORS.common.white,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.child.background,
+    backgroundColor: COLORS.common.white,
   },
   loadingText: {
     marginTop: 12,
@@ -559,263 +573,441 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
-  // Card Principal
-  balanceCard: {
-    margin: 16,
-    backgroundColor: '#fff',
-    elevation: 6,
+  // Header
+  header: {
+    backgroundColor: GREEN_THEME.primary,
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
   },
-  balanceHeader: {
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
   },
-  balanceInfo: {
-    marginLeft: 16,
-    flex: 1,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerIcon: {
+    opacity: 0.95,
+  },
+  balanceSection: {
+    alignItems: 'center',
   },
   balanceLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   balanceValue: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#fff',
+    textAlign: 'center',
   },
   balanceSubtext: {
-    fontSize: 16,
-    color: '#666',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  divider: {
-    width: 1,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
     textAlign: 'center',
-    marginTop: 2,
+  },
+  balanceDetails: {
+    marginTop: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  balanceDetailText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '600',
+  },
+  bonusText: {
+    fontSize: 14,
+    color: '#FFD54F',
+    fontWeight: '700',
   },
 
-  // Card de Metas
-  goalCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+  // Content
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingTop: 32,
+  },
+
+  // Action Buttons
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: -24,
+    zIndex: 10,
+  },
+  depositButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#fff',
-    elevation: 4,
+    paddingVertical: 14,
+    borderRadius: 24,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  depositButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: GREEN_THEME.dark,
+  },
+  withdrawButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: 14,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#fff',
+    gap: 8,
+  },
+  withdrawButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+
+  // Earnings Card
+  earningsCard: {
+    backgroundColor: GREEN_THEME.light,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: GREEN_THEME.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  earningsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 12,
+  },
+  earningsInfo: {
+    flex: 1,
+  },
+  earningsValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: GREEN_THEME.primary,
+  },
+  earningsLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginTop: 2,
+  },
+  earningsValueEmpty: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#999',
+  },
+  earningsLabelEmpty: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 2,
+  },
+  earningsExplanation: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginTop: 4,
+  },
+
+  // Goal Card
+  goalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
   },
   goalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 12,
-    flex: 1,
-  },
-  editGoalButton: {
-    margin: 0,
-  },
-  goalAmount: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#E0E0E0',
-  },
-  goalPercentage: {
     fontSize: 16,
-    color: '#4CAF50',
-    fontWeight: 'bold',
-    marginTop: 8,
+    fontWeight: '700',
+    color: COLORS.common.text,
   },
-  goalMessage: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  goalAchieved: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#FFF9C4',
-    borderRadius: 8,
-  },
-  goalAchievedText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#F57F17',
-    marginLeft: 8,
-    flex: 1,
-  },
-
-  // Simulador
-  simulatorCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    elevation: 4,
-  },
-  simulatorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  simulatorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 12,
-  },
-  simulatorSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-  },
-  simulationList: {
-    gap: 12,
-  },
-  simulationItem: {
+  goalProgressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
+    marginBottom: 8,
   },
-  simulationPeriod: {
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
+  goalProgressLabel: {
+    fontSize: 14,
+    color: '#666',
   },
-  simulationValue: {
+  goalPercentage: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#00BCD4',
+    fontWeight: '700',
+    color: COLORS.common.text,
+  },
+  progressBarContainer: {
+    height: 20,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    position: 'relative',
+    marginBottom: 12,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: COLORS.child.primary,
+    borderRadius: 10,
+  },
+  pigIndicator: {
+    position: 'absolute',
+    top: -8,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ translateX: -14 }],
+  },
+  pigEmoji: {
+    fontSize: 24,
+    textAlign: 'center',
+  },
+  goalText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 
-  // Bônus
-  bonusCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+  // Projection Card
+  projectionCard: {
     backgroundColor: '#fff',
-    elevation: 4,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  projectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  projectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.common.text,
+  },
+  projectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  projectionHighlight: {
+    color: GREEN_THEME.primary,
+    fontWeight: '700',
+  },
+  projectionList: {
+    gap: 8,
+  },
+  projectionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: GREEN_THEME.light,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  projectionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  projectionPeriod: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  projectionValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: GREEN_THEME.primary,
+  },
+
+  // Bonus Card
+  bonusCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   bonusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
   },
   bonusTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.common.text,
   },
   bonusSubtitle: {
     fontSize: 14,
     color: '#666',
     marginBottom: 16,
   },
-  bonusChips: {
+  howItWorksItem: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
     marginBottom: 16,
   },
-  bonusChip: {
+  howItWorksIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: GREEN_THEME.light,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  howItWorksText: {
     flex: 1,
   },
-  bonusChipActive: {
-    backgroundColor: '#C8E6C9',
-  },
-  currentBonus: {
-    padding: 12,
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-  },
-  currentBonusText: {
+  howItWorksTitle: {
     fontSize: 15,
-    color: '#666',
+    fontWeight: '700',
+    color: '#333',
     marginBottom: 4,
   },
-  currentBonusBold: {
-    fontWeight: 'bold',
-    color: '#FF9800',
-  },
-  noBonusText: {
-    fontSize: 14,
-    color: '#999',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-
-  // Botões
-  actionsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 16,
-  },
-  depositButton: {
-    flex: 1,
-  },
-  withdrawButton: {
-    flex: 1,
-  },
-  buttonContent: {
-    paddingVertical: 8,
-  },
-
-  // Modal
-  modal: {
-    backgroundColor: '#fff',
-    padding: 24,
-    margin: 20,
-    borderRadius: 12,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
+  howItWorksDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    lineHeight: 20,
   },
-  modalBalance: {
+  magicCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF9E6',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#FFE082',
+  },
+  magicEmoji: {
+    fontSize: 32,
+  },
+  magicText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+
+  // Bottom Sheet Content
+  sheetContent: {
+    gap: 16,
+  },
+  sheetLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  sheetBalance: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: GREEN_THEME.primary,
+    marginTop: -8,
+  },
+  input: {
+    backgroundColor: '#fff',
+  },
+  sheetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 8,
+  },
+  depositSheetButton: {
+    backgroundColor: GREEN_THEME.primary,
+  },
+  withdrawSheetButton: {
+    backgroundColor: '#FFC107',
+  },
+  goalSheetButton: {
+    backgroundColor: COLORS.child.primary,
+  },
+  sheetButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  withdrawSheetButtonText: {
+    color: '#333',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: GREEN_THEME.light,
+    borderRadius: 8,
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+    lineHeight: 20,
   },
   warningBox: {
     flexDirection: 'row',
@@ -823,7 +1015,6 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#FFF3E0',
     borderRadius: 8,
-    marginBottom: 16,
     gap: 8,
   },
   warningText: {
@@ -832,41 +1023,9 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
-  input: {
-    marginBottom: 16,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-  },
-  bonusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#C8E6C9',
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  bonusBadgeText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#2E7D32',
-    marginLeft: 8,
-    flex: 1,
-  },
-  withdrawPreview: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF9800',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
 
   bottomSpacer: {
-    height: 32,
+    height: 20,
   },
 });
 

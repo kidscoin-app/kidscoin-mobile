@@ -2,15 +2,18 @@
  * Tela para gerenciar tarefas (Parent)
  * Migrado para React Query
  */
-import React, { useEffect, useState, useRef } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import React, { useState, useMemo } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  ScrollView as HorizontalScroll,
+} from 'react-native';
 import {
   Button,
-  Card,
   Chip,
   Dialog,
-  Divider,
   IconButton,
   Portal,
   SegmentedButtons,
@@ -19,6 +22,7 @@ import {
   Text,
   TextInput,
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useChildren,
   useTasks,
@@ -26,18 +30,20 @@ import {
   useApproveTask,
   useRejectTask,
   useDeleteTask,
+  useRefreshOnFocus,
 } from '../../hooks';
 import { getErrorMessage } from '../../services';
 import { RecurrenceType, TaskAssignment, TaskCategory } from '../../types';
 import { COLORS } from '../../utils/constants';
+import { BottomSheet } from '../../components';
 
-// Categorias disponíveis
-const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
-  { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom' },
-  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant' },
-  { value: 'ESTUDOS', label: 'Estudos', icon: 'book-open' },
-  { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart' },
-  { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal' },
+// Categorias disponiveis
+const CATEGORIES: { value: TaskCategory; label: string; icon: string; emoji: string }[] = [
+  { value: 'LIMPEZA', label: 'Limpeza', icon: 'broom', emoji: '' },
+  { value: 'ORGANIZACAO', label: 'Organização', icon: 'package-variant', emoji: '' },
+  { value: 'ESTUDOS', label: 'Estudo', icon: 'book-open', emoji: '' },
+  { value: 'CUIDADOS', label: 'Cuidados', icon: 'heart', emoji: '' },
+  { value: 'OUTRAS', label: 'Outras', icon: 'dots-horizontal', emoji: '' },
 ];
 
 // Dias da semana
@@ -47,16 +53,21 @@ const WEEKDAYS = [
   { value: 'WED', label: 'Qua' },
   { value: 'THU', label: 'Qui' },
   { value: 'FRI', label: 'Sex' },
-  { value: 'SAT', label: 'Sáb' },
+  { value: 'SAT', label: 'Sab' },
   { value: 'SUN', label: 'Dom' },
 ];
 
-const ManageTasksScreen: React.FC = () => {
-  const route = useRoute();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const assignedTasksRef = useRef<View>(null);
+type StatusFilter = 'ALL' | 'COMPLETED' | 'PENDING' | 'APPROVED';
 
-  // Formulário
+const ManageTasksScreen: React.FC = () => {
+  // Filtros
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<TaskCategory | null>(null);
+
+  // Bottom Sheet
+  const [showCreateSheet, setShowCreateSheet] = useState(false);
+
+  // Formulario
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coinValue, setCoinValue] = useState('');
@@ -64,7 +75,7 @@ const ManageTasksScreen: React.FC = () => {
   const [category, setCategory] = useState<TaskCategory>('LIMPEZA');
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
 
-  // Recorrência
+  // Recorrencia
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('DAILY');
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
@@ -74,35 +85,28 @@ const ManageTasksScreen: React.FC = () => {
   // UI State
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<TaskCategory | null>(null);
 
-  // Dialog de rejeição
+  // Dialog de rejeicao
   const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
   const [rejectingTask, setRejectingTask] = useState<TaskAssignment | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Dialog de exclusão
+  // Dialog de exclusao
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingTask, setDeletingTask] = useState<TaskAssignment | null>(null);
 
   // React Query hooks
   const { data: children = [] } = useChildren();
-  const { data: tasks = [], isLoading: loadingTasks } = useTasks();
+  const { data: tasks = [], isLoading: loadingTasks, refetch: refetchTasks } = useTasks();
+
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
 
   const createTask = useCreateTask({
     onSuccess: () => {
       setSuccess('Tarefa criada com sucesso!');
-      // Limpar formulário
-      setTitle('');
-      setDescription('');
-      setCoinValue('');
-      setXpValue('');
-      setSelectedChildren([]);
-      setIsRecurring(false);
-      setRecurrenceType('DAILY');
-      setSelectedWeekdays([]);
-      setHasEndDate(false);
-      setEndDate('');
+      resetForm();
+      setShowCreateSheet(false);
     },
     onError: (err) => {
       setError(getErrorMessage(err));
@@ -131,7 +135,7 @@ const ManageTasksScreen: React.FC = () => {
 
   const deleteTask = useDeleteTask({
     onSuccess: () => {
-      setSuccess('Tarefa excluída com sucesso.');
+      setSuccess('Tarefa excluida com sucesso.');
       setDeleteDialogVisible(false);
       setDeletingTask(null);
     },
@@ -140,28 +144,68 @@ const ManageTasksScreen: React.FC = () => {
     },
   });
 
-  // Scroll automático para tarefas atribuídas
-  useEffect(() => {
-    const params = route.params as { scrollToAssigned?: boolean } | undefined;
-    if (params?.scrollToAssigned && assignedTasksRef.current) {
-      setTimeout(() => {
-        assignedTasksRef.current?.measureLayout(
-          scrollViewRef.current as any,
-          (x, y) => {
-            scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
-          },
-          () => {}
-        );
-      }, 300);
+  // Contadores por status
+  const statusCounts = useMemo(() => {
+    return {
+      all: tasks.length,
+      completed: tasks.filter((t) => t.status === 'COMPLETED').length,
+      pending: tasks.filter((t) => t.status === 'PENDING').length,
+      approved: tasks.filter((t) => t.status === 'APPROVED').length,
+    };
+  }, [tasks]);
+
+  // Filtrar e ordenar tarefas
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks;
+
+    // Filtro de status
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter((t) => t.status === statusFilter);
     }
-  }, [route.params]);
+
+    // Filtro de categoria
+    if (categoryFilter) {
+      filtered = filtered.filter((t) => t.task.category === categoryFilter);
+    }
+
+    // Ordenar: COMPLETED primeiro, depois PENDING, REJECTED, APPROVED
+    const priorityMap: { [key: string]: number } = {
+      COMPLETED: 1,
+      REJECTED: 2,
+      PENDING: 3,
+      APPROVED: 4,
+    };
+
+    return [...filtered].sort((a, b) => {
+      const priorityA = priorityMap[a.status] || 999;
+      const priorityB = priorityMap[b.status] || 999;
+      return priorityA - priorityB;
+    });
+  }, [tasks, statusFilter, categoryFilter]);
 
   /**
-   * Validar formulário
+   * Resetar formulario
+   */
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setCoinValue('');
+    setXpValue('');
+    setCategory('LIMPEZA');
+    setSelectedChildren([]);
+    setIsRecurring(false);
+    setRecurrenceType('DAILY');
+    setSelectedWeekdays([]);
+    setHasEndDate(false);
+    setEndDate('');
+  };
+
+  /**
+   * Validar formulario
    */
   const validateForm = (): boolean => {
     if (!title.trim()) {
-      setError('Preencha o título da tarefa');
+      setError('Preencha o titulo da tarefa');
       return false;
     }
 
@@ -224,7 +268,7 @@ const ManageTasksScreen: React.FC = () => {
   };
 
   /**
-   * Abrir dialog de rejeição
+   * Abrir dialog de rejeicao
    */
   const openRejectDialog = (task: TaskAssignment) => {
     setRejectingTask(task);
@@ -247,7 +291,7 @@ const ManageTasksScreen: React.FC = () => {
   };
 
   /**
-   * Abrir dialog de exclusão
+   * Abrir dialog de exclusao
    */
   const openDeleteDialog = (task: TaskAssignment) => {
     setDeletingTask(task);
@@ -265,7 +309,7 @@ const ManageTasksScreen: React.FC = () => {
   };
 
   /**
-   * Toggle criança selecionada
+   * Toggle crianca selecionada
    */
   const toggleChild = (childId: string) => {
     setSelectedChildren((prev) =>
@@ -288,11 +332,29 @@ const ManageTasksScreen: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return COLORS.child.warning;
+        return '#FFF3E0';
       case 'COMPLETED':
-        return COLORS.child.primary;
+        return '#F3E5F5';
       case 'APPROVED':
-        return COLORS.child.success;
+        return '#E8F5E9';
+      case 'REJECTED':
+        return '#FFEBEE';
+      default:
+        return '#F5F5F5';
+    }
+  };
+
+  /**
+   * Obter cor do texto do status
+   */
+  const getStatusTextColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return '#E65100';
+      case 'COMPLETED':
+        return COLORS.parent.primary;
+      case 'APPROVED':
+        return '#2E7D32';
       case 'REJECTED':
         return COLORS.common.error;
       default:
@@ -318,371 +380,427 @@ const ManageTasksScreen: React.FC = () => {
     }
   };
 
-  /**
-   * Ordenar tarefas por prioridade de ação
-   */
-  const getSortedTasks = () => {
-    const priorityMap: { [key: string]: number } = {
-      COMPLETED: 1,
-      REJECTED: 2,
-      PENDING: 3,
-      APPROVED: 4,
-    };
-
-    let filteredTasks = categoryFilter
-      ? tasks.filter((t) => t.task.category === categoryFilter)
-      : tasks;
-
-    return [...filteredTasks].sort((a, b) => {
-      const priorityA = priorityMap[a.status] || 999;
-      const priorityB = priorityMap[b.status] || 999;
-      return priorityA - priorityB;
-    });
-  };
-
   return (
     <View style={styles.container}>
-      <ScrollView ref={scrollViewRef} style={styles.scrollView}>
-        <View style={styles.content}>
-          {/* Formulário de criar tarefa */}
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={styles.cardTitle}>Criar Nova Tarefa</Text>
+      {/* Filtros de Status */}
+      <View style={styles.statusFiltersContainer}>
+        <HorizontalScroll
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statusFilters}
+        >
+          <Chip
+            selected={statusFilter === 'ALL'}
+            onPress={() => setStatusFilter('ALL')}
+            style={[styles.statusChip, statusFilter === 'ALL' && styles.statusChipSelected]}
+            textStyle={[styles.statusChipText, statusFilter === 'ALL' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+          >
+            Todas {statusCounts.all}
+          </Chip>
+          <Chip
+            selected={statusFilter === 'COMPLETED'}
+            onPress={() => setStatusFilter('COMPLETED')}
+            style={[styles.statusChip, statusFilter === 'COMPLETED' && styles.statusChipSelected]}
+            textStyle={[styles.statusChipText, statusFilter === 'COMPLETED' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+          >
+            Aguardando {statusCounts.completed}
+          </Chip>
+          <Chip
+            selected={statusFilter === 'PENDING'}
+            onPress={() => setStatusFilter('PENDING')}
+            style={[styles.statusChip, statusFilter === 'PENDING' && styles.statusChipSelected]}
+            textStyle={[styles.statusChipText, statusFilter === 'PENDING' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+          >
+            Pendentes {statusCounts.pending}
+          </Chip>
+          <Chip
+            selected={statusFilter === 'APPROVED'}
+            onPress={() => setStatusFilter('APPROVED')}
+            style={[styles.statusChip, statusFilter === 'APPROVED' && styles.statusChipSelected]}
+            textStyle={[styles.statusChipText, statusFilter === 'APPROVED' && styles.statusChipTextSelected]}
+            showSelectedOverlay={false}
+          >
+            Aprovadas {statusCounts.approved}
+          </Chip>
+        </HorizontalScroll>
+      </View>
 
-              <TextInput
-                label="Título da Tarefa"
-                value={title}
-                onChangeText={setTitle}
-                mode="outlined"
-                style={styles.input}
-                placeholder="Ex: Arrumar o quarto"
-              />
+      {/* Filtro de Categoria */}
+      <View style={styles.categoryFilterContainer}>
+        <View style={styles.categoryLabelRow}>
+          <MaterialCommunityIcons name="filter-variant" size={18} color={COLORS.common.textLight} />
+          <Text style={styles.categoryLabel}>Categoria</Text>
+        </View>
+        <HorizontalScroll
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilters}
+        >
+          <Chip
+            selected={categoryFilter === null}
+            onPress={() => setCategoryFilter(null)}
+            style={[styles.categoryChip, categoryFilter === null && styles.categoryChipSelected]}
+            textStyle={[styles.categoryChipText, categoryFilter === null && styles.categoryChipTextSelected]}
+            showSelectedOverlay={false}
+            icon={categoryFilter === null ? 'check' : undefined}
+          >
+            Todas
+          </Chip>
+          {CATEGORIES.map((cat) => {
+            const isSelected = categoryFilter === cat.value;
+            return (
+              <Chip
+                key={cat.value}
+                selected={isSelected}
+                onPress={() => setCategoryFilter(cat.value)}
+                style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                textStyle={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
+                showSelectedOverlay={false}
+                icon={isSelected ? 'check' : cat.icon}
+              >
+                {cat.label}
+              </Chip>
+            );
+          })}
+        </HorizontalScroll>
+      </View>
 
-              <TextInput
-                label="Descrição (opcional)"
-                value={description}
-                onChangeText={setDescription}
-                mode="outlined"
-                multiline
-                numberOfLines={2}
-                style={styles.input}
-                placeholder="Ex: Organizar brinquedos e fazer a cama"
-              />
+      {/* Lista de Tarefas */}
+      <ScrollView style={styles.taskList} contentContainerStyle={styles.taskListContent}>
+        {loadingTasks ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Carregando...</Text>
+          </View>
+        ) : filteredTasks.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons
+              name="clipboard-text-outline"
+              size={48}
+              color={COLORS.common.textLight}
+            />
+            <Text style={styles.emptyText}>Nenhuma tarefa encontrada</Text>
+          </View>
+        ) : (
+          filteredTasks.map((assignment) => (
+            <View key={assignment.id} style={styles.taskCard}>
+              {/* Header do Card */}
+              <View style={styles.taskCardHeader}>
+                <Text style={styles.taskTitle} numberOfLines={1}>
+                  {assignment.task.title}
+                </Text>
+                <View
+                  style={[
+                    styles.taskStatusBadge,
+                    { backgroundColor: getStatusColor(assignment.status) },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.taskStatusText,
+                      { color: getStatusTextColor(assignment.status) },
+                    ]}
+                  >
+                    {getStatusText(assignment.status)}
+                  </Text>
+                </View>
+              </View>
 
-              <View style={styles.row}>
-                <TextInput
-                  label="Moedas"
-                  value={coinValue}
-                  onChangeText={setCoinValue}
-                  mode="outlined"
-                  keyboardType="numeric"
-                  style={[styles.input, styles.halfInput]}
-                  left={<TextInput.Icon icon="currency-usd" />}
-                  placeholder="10"
+              {/* Descricao */}
+              {assignment.task.description && (
+                <Text style={styles.taskDescription} numberOfLines={2}>
+                  {assignment.task.description}
+                </Text>
+              )}
+
+              {/* Crianca */}
+              <View style={styles.taskChildRow}>
+                <MaterialCommunityIcons
+                  name="account-outline"
+                  size={16}
+                  color={COLORS.common.textLight}
                 />
+                <Text style={styles.taskChildName}>{assignment.childName}</Text>
+              </View>
 
-                <TextInput
-                  label="XP"
-                  value={xpValue}
-                  onChangeText={setXpValue}
-                  mode="outlined"
-                  keyboardType="numeric"
-                  style={[styles.input, styles.halfInput]}
-                  left={<TextInput.Icon icon="star" />}
-                  placeholder="50"
+              {/* Valores e Delete */}
+              <View style={styles.taskValuesRow}>
+                <View style={styles.taskValues}>
+                  <View style={styles.taskValueItem}>
+                    <MaterialCommunityIcons name="hand-coin" size={18} color="#FFC107" />
+                    <Text style={styles.taskValueText}>{assignment.task.coinValue} moedas</Text>
+                  </View>
+                  <View style={styles.taskValueItem}>
+                    <MaterialCommunityIcons name="star" size={18} color="#FFC107" />
+                    <Text style={styles.taskValueText}>{assignment.task.xpValue} XP</Text>
+                  </View>
+                </View>
+                <IconButton
+                  icon="delete-outline"
+                  iconColor={COLORS.common.error}
+                  size={22}
+                  onPress={() => openDeleteDialog(assignment)}
+                  style={styles.deleteButton}
                 />
               </View>
 
-              <Text style={styles.label}>Categoria</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.categoryRow}>
-                  {CATEGORIES.map((cat) => {
-                    const isSelected = category === cat.value;
-                    return (
-                      <Chip
-                        key={cat.value}
-                        selected={isSelected}
-                        onPress={() => setCategory(cat.value)}
-                        style={[styles.chip, isSelected && styles.chipSelected]}
-                        icon={cat.icon}
-                        mode={isSelected ? 'flat' : 'outlined'}
-                        textStyle={isSelected ? styles.chipTextSelected : styles.chipTextUnselected}
-                      >
-                        {cat.label}
-                      </Chip>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-
-              <Text style={styles.label}>Atribuir para</Text>
-              {children.length === 0 ? (
-                <Text style={styles.emptyText}>Cadastre crianças primeiro na aba "Crianças"</Text>
-              ) : (
-                <View style={styles.childrenList}>
-                  {children.map((child) => {
-                    const isSelected = selectedChildren.includes(child.id);
-                    return (
-                      <Chip
-                        key={child.id}
-                        selected={isSelected}
-                        onPress={() => toggleChild(child.id)}
-                        style={[styles.childChip, isSelected && styles.chipSelected]}
-                        icon="account"
-                        mode={isSelected ? 'flat' : 'outlined'}
-                        textStyle={isSelected ? styles.chipTextSelected : styles.chipTextUnselected}
-                      >
-                        {child.fullName}
-                      </Chip>
-                    );
-                  })}
+              {/* Botoes de Acao para tarefas COMPLETED */}
+              {assignment.status === 'COMPLETED' && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.approveButton}
+                    onPress={() => handleApprove(assignment.id)}
+                    disabled={approveTask.isPending}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="check" size={18} color="#fff" />
+                    <Text style={styles.approveButtonText}>Aprovar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => openRejectDialog(assignment)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="close" size={18} color={COLORS.common.error} />
+                    <Text style={styles.rejectButtonText}>Rejeitar</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
-              {/* Seção de Recorrência */}
-              <View style={styles.recurrenceSection}>
-                <View style={styles.recurrenceHeader}>
-                  <Text style={styles.label}>Tarefa Recorrente</Text>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={setIsRecurring}
-                    color={COLORS.parent.primary}
-                  />
+              {/* Motivo da Rejeicao */}
+              {assignment.status === 'REJECTED' && assignment.rejectionReason && (
+                <View style={styles.rejectionContainer}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.common.error} />
+                  <Text style={styles.rejectionReason}>
+                    Motivo: {assignment.rejectionReason}
+                  </Text>
                 </View>
+              )}
+            </View>
+          ))
+        )}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
 
-                {isRecurring && (
-                  <View style={styles.recurrenceOptions}>
-                    <Text style={styles.sublabel}>Frequência</Text>
-                    <SegmentedButtons
-                      value={recurrenceType}
-                      onValueChange={(value) => setRecurrenceType(value as RecurrenceType)}
-                      buttons={[
-                        { value: 'DAILY', label: 'Todos os dias' },
-                        { value: 'WEEKLY', label: 'Dias específicos' },
-                      ]}
-                      style={styles.segmentedButtons}
-                    />
+      {/* Botao Flutuante Nova */}
+      <TouchableOpacity
+        style={styles.fabButton}
+        onPress={() => setShowCreateSheet(true)}
+        activeOpacity={0.9}
+      >
+        <MaterialCommunityIcons name="plus" size={22} color="#fff" />
+        <Text style={styles.fabText}>Nova</Text>
+      </TouchableOpacity>
 
-                    {recurrenceType === 'WEEKLY' && (
-                      <View>
-                        <Text style={styles.sublabel}>Dias da semana</Text>
-                        <View style={styles.weekdaysContainer}>
-                          {WEEKDAYS.map((day) => {
-                            const isSelected = selectedWeekdays.includes(day.value);
-                            return (
-                              <Chip
-                                key={day.value}
-                                selected={isSelected}
-                                onPress={() => toggleWeekday(day.value)}
-                                style={[styles.weekdayChip, isSelected && styles.chipSelected]}
-                                mode={isSelected ? 'flat' : 'outlined'}
-                                textStyle={
-                                  isSelected ? styles.chipTextSelected : styles.chipTextUnselected
-                                }
-                              >
-                                {day.label}
-                              </Chip>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    )}
+      {/* Bottom Sheet de Criar Tarefa */}
+      <BottomSheet
+        visible={showCreateSheet}
+        onClose={() => setShowCreateSheet(false)}
+        title="Criar Nova Tarefa"
+        height={0.9}
+      >
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          mode="outlined"
+          style={styles.input}
+          placeholder="Titulo da Tarefa"
+          outlineColor={COLORS.common.border}
+          activeOutlineColor={COLORS.parent.primary}
+          outlineStyle={styles.inputOutline}
+        />
 
-                    <View style={styles.endDateSection}>
-                      <View style={styles.recurrenceHeader}>
-                        <Text style={styles.sublabel}>Definir data final</Text>
-                        <Switch
-                          value={hasEndDate}
-                          onValueChange={setHasEndDate}
-                          color={COLORS.parent.primary}
-                        />
-                      </View>
+        <TextInput
+          value={description}
+          onChangeText={setDescription}
+          mode="outlined"
+          multiline
+          numberOfLines={3}
+          style={styles.inputMultiline}
+          placeholder="Descrição (opcional)"
+          outlineColor={COLORS.common.border}
+          activeOutlineColor={COLORS.parent.primary}
+          outlineStyle={styles.inputOutline}
+        />
 
-                      {hasEndDate && (
-                        <TextInput
-                          label="Data final (AAAA-MM-DD)"
-                          value={endDate}
-                          onChangeText={setEndDate}
-                          mode="outlined"
-                          placeholder="2025-12-31"
-                          style={styles.input}
-                          left={<TextInput.Icon icon="calendar" />}
-                        />
-                      )}
-                    </View>
+        <View style={styles.row}>
+          <TextInput
+            value={coinValue}
+            onChangeText={setCoinValue}
+            mode="outlined"
+            keyboardType="numeric"
+            style={[styles.input, styles.halfInput]}
+            left={<TextInput.Icon icon="currency-usd" />}
+            placeholder="Moedas"
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={COLORS.parent.primary}
+            outlineStyle={styles.inputOutline}
+          />
 
-                    <Text style={styles.recurrenceHint}>
-                      💡 A tarefa será criada automaticamente nos dias configurados
-                    </Text>
-                  </View>
-                )}
-              </View>
+          <TextInput
+            value={xpValue}
+            onChangeText={setXpValue}
+            mode="outlined"
+            keyboardType="numeric"
+            style={[styles.input, styles.halfInput]}
+            left={<TextInput.Icon icon="star-outline" />}
+            placeholder="XP"
+            outlineColor={COLORS.common.border}
+            activeOutlineColor={COLORS.parent.primary}
+            outlineStyle={styles.inputOutline}
+          />
+        </View>
 
-              <Button
-                mode="contained"
-                onPress={handleCreateTask}
-                loading={createTask.isPending}
-                disabled={createTask.isPending || children.length === 0}
-                style={styles.createButton}
-                buttonColor={COLORS.parent.primary}
-                icon="plus"
-              >
-                Criar Tarefa
-              </Button>
-            </Card.Content>
-          </Card>
-
-          {/* Lista de tarefas */}
-          <View ref={assignedTasksRef} collapsable={false}>
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text style={styles.cardTitle}>Tarefas Atribuídas</Text>
-
-                {/* Filtro de categoria */}
-                <Text style={styles.label}>Filtrar por categoria</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.filterScrollView}
+        <Text style={styles.formLabel}>Categoria</Text>
+        <HorizontalScroll
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.formChipsScroll}
+        >
+          <View style={styles.formChipsRow}>
+            {CATEGORIES.map((cat) => {
+              const isSelected = category === cat.value;
+              return (
+                <Chip
+                  key={cat.value}
+                  selected={isSelected}
+                  onPress={() => setCategory(cat.value)}
+                  style={[styles.formChip, isSelected && styles.formChipSelected]}
+                  icon={isSelected ? 'check' : cat.icon}
+                  textStyle={isSelected ? styles.formChipTextSelected : styles.formChipText}
+                  showSelectedOverlay={false}
                 >
-                  <View style={styles.filterChips}>
-                    <Chip
-                      selected={categoryFilter === null}
-                      onPress={() => setCategoryFilter(null)}
-                      style={[styles.chip, categoryFilter === null && styles.chipSelected]}
-                      mode={categoryFilter === null ? 'flat' : 'outlined'}
-                      textStyle={
-                        categoryFilter === null ? styles.chipTextSelected : styles.chipTextUnselected
-                      }
-                    >
-                      Todas
-                    </Chip>
-                    {CATEGORIES.map((cat) => {
-                      const isSelected = categoryFilter === cat.value;
+                  {cat.label}
+                </Chip>
+              );
+            })}
+          </View>
+        </HorizontalScroll>
+
+        <Text style={styles.formLabel}>Atribuir para</Text>
+        {children.length === 0 ? (
+          <Text style={styles.emptyText}>Cadastre crianças primeiro na aba "Crianças"</Text>
+        ) : (
+          <View style={styles.childrenList}>
+            {children.map((child) => {
+              const isSelected = selectedChildren.includes(child.id);
+              return (
+                <Chip
+                  key={child.id}
+                  selected={isSelected}
+                  onPress={() => toggleChild(child.id)}
+                  style={[styles.formChip, isSelected && styles.formChipSelected]}
+                  icon="account-outline"
+                  textStyle={isSelected ? styles.formChipTextSelected : styles.formChipText}
+                  showSelectedOverlay={false}
+                >
+                  {child.fullName}
+                </Chip>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Secao de Recorrencia */}
+        <View style={styles.recurrenceSection}>
+          <View style={styles.recurrenceHeader}>
+            <Text style={styles.formLabel}>Tarefa Recorrente</Text>
+            <Switch
+              value={isRecurring}
+              onValueChange={setIsRecurring}
+              color={COLORS.parent.primary}
+            />
+          </View>
+
+          {isRecurring && (
+            <View style={styles.recurrenceOptions}>
+              <Text style={styles.sublabel}>Frequencia</Text>
+              <SegmentedButtons
+                value={recurrenceType}
+                onValueChange={(value) => setRecurrenceType(value as RecurrenceType)}
+                buttons={[
+                  { value: 'DAILY', label: 'Todos os dias' },
+                  { value: 'WEEKLY', label: 'Dias especificos' },
+                ]}
+                style={styles.segmentedButtons}
+              />
+
+              {recurrenceType === 'WEEKLY' && (
+                <View>
+                  <Text style={styles.sublabel}>Dias da semana</Text>
+                  <View style={styles.weekdaysContainer}>
+                    {WEEKDAYS.map((day) => {
+                      const isSelected = selectedWeekdays.includes(day.value);
                       return (
                         <Chip
-                          key={cat.value}
+                          key={day.value}
                           selected={isSelected}
-                          onPress={() => setCategoryFilter(cat.value)}
-                          style={[styles.chip, isSelected && styles.chipSelected]}
-                          icon={cat.icon}
-                          mode={isSelected ? 'flat' : 'outlined'}
-                          textStyle={
-                            isSelected ? styles.chipTextSelected : styles.chipTextUnselected
-                          }
+                          onPress={() => toggleWeekday(day.value)}
+                          style={[styles.weekdayChip, isSelected && styles.formChipSelected]}
+                          textStyle={isSelected ? styles.formChipTextSelected : styles.formChipText}
+                          showSelectedOverlay={false}
                         >
-                          {cat.label}
+                          {day.label}
                         </Chip>
                       );
                     })}
                   </View>
-                </ScrollView>
+                </View>
+              )}
 
-                {loadingTasks ? (
-                  <Text style={styles.emptyText}>Carregando...</Text>
-                ) : tasks.length === 0 ? (
-                  <Text style={styles.emptyText}>Nenhuma tarefa criada ainda.</Text>
-                ) : (
-                  <View>
-                    {getSortedTasks().map((assignment, index) => (
-                      <React.Fragment key={assignment.id}>
-                        <View style={styles.taskItem}>
-                          <View style={styles.taskHeader}>
-                            <Text style={styles.taskTitle}>{assignment.task.title}</Text>
-                            <Chip
-                              style={[
-                                styles.statusChip,
-                                { backgroundColor: getStatusColor(assignment.status) },
-                              ]}
-                              textStyle={styles.statusText}
-                            >
-                              {getStatusText(assignment.status)}
-                            </Chip>
-                          </View>
+              <View style={styles.endDateSection}>
+                <View style={styles.recurrenceHeader}>
+                  <Text style={styles.sublabel}>Definir data final</Text>
+                  <Switch
+                    value={hasEndDate}
+                    onValueChange={setHasEndDate}
+                    color={COLORS.parent.primary}
+                  />
+                </View>
 
-                          {assignment.task.description && (
-                            <Text style={styles.taskDescription}>
-                              {assignment.task.description}
-                            </Text>
-                          )}
-
-                          <Text style={styles.taskChild}>👤 {assignment.childName}</Text>
-
-                          <View style={styles.taskRewardRow}>
-                            <View style={styles.taskReward}>
-                              <Text style={styles.taskRewardText}>
-                                💰 {assignment.task.coinValue} moedas
-                              </Text>
-                              <Text style={styles.taskRewardText}>
-                                ⭐ {assignment.task.xpValue} XP
-                              </Text>
-                            </View>
-
-                            {
-                              assignment.status === 'COMPLETED' && (
-                                <IconButton
-                                  icon="delete"
-                                  iconColor={COLORS.common.error}
-                                  size={20}
-                                  onPress={() => openDeleteDialog(assignment)}
-                                  style={styles.deleteButton}
-                                />
-                              )
-                            }
-                          </View>
-
-                          {/* Botões de ação para tarefas COMPLETED */}
-                          {assignment.status === 'COMPLETED' && (
-                            <View style={styles.actionButtons}>
-                              <Button
-                                mode="contained"
-                                onPress={() => handleApprove(assignment.id)}
-                                style={styles.approveButton}
-                                buttonColor={COLORS.child.success}
-                                icon="check"
-                                loading={approveTask.isPending}
-                                disabled={approveTask.isPending}
-                              >
-                                Aprovar
-                              </Button>
-                              <Button
-                                mode="outlined"
-                                onPress={() => openRejectDialog(assignment)}
-                                style={styles.rejectButton}
-                                textColor={COLORS.common.error}
-                                icon="close"
-                              >
-                                Rejeitar
-                              </Button>
-                            </View>
-                          )}
-
-                          {/* Mostrar motivo da rejeição */}
-                          {assignment.status === 'REJECTED' && assignment.rejectionReason && (
-                            <Text style={styles.rejectionReason}>
-                              ❌ Motivo: {assignment.rejectionReason}
-                            </Text>
-                          )}
-                        </View>
-
-                        {index < tasks.length - 1 && <Divider style={styles.divider} />}
-                      </React.Fragment>
-                    ))}
-                  </View>
+                {hasEndDate && (
+                  <TextInput
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    mode="outlined"
+                    placeholder="AAAA-MM-DD"
+                    style={styles.input}
+                    left={<TextInput.Icon icon="calendar" />}
+                    outlineColor={COLORS.common.border}
+                    activeOutlineColor={COLORS.parent.primary}
+                    outlineStyle={styles.inputOutline}
+                  />
                 )}
-              </Card.Content>
-            </Card>
-          </View>
+              </View>
+            </View>
+          )}
         </View>
-      </ScrollView>
 
-      {/* Dialog de rejeição */}
+        <TouchableOpacity
+          style={[
+            styles.createButton,
+            (createTask.isPending || children.length === 0) && styles.createButtonDisabled,
+          ]}
+          onPress={handleCreateTask}
+          disabled={createTask.isPending || children.length === 0}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+          <Text style={styles.createButtonText}>
+            {createTask.isPending ? 'Criando...' : 'Criar Tarefa'}
+          </Text>
+        </TouchableOpacity>
+      </BottomSheet>
+
+      {/* Dialog de rejeicao */}
       <Portal>
         <Dialog visible={rejectDialogVisible} onDismiss={() => setRejectDialogVisible(false)}>
           <Dialog.Title>Rejeitar Tarefa</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.dialogText}>
-              Informe o motivo da rejeição para {rejectingTask?.childName}:
+              Informe o motivo da rejeicao para {rejectingTask?.childName}:
             </Text>
             <TextInput
               value={rejectionReason}
@@ -707,7 +825,7 @@ const ManageTasksScreen: React.FC = () => {
           </Dialog.Actions>
         </Dialog>
 
-        {/* Dialog de exclusão */}
+        {/* Dialog de exclusao */}
         <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
           <Dialog.Title>Excluir Tarefa</Dialog.Title>
           <Dialog.Content>
@@ -726,8 +844,8 @@ const ManageTasksScreen: React.FC = () => {
               loading={deleteTask.isPending}
               disabled={deleteTask.isPending}
             >
-              Excluir
-            </Button>
+                Excluir
+              </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -757,90 +875,112 @@ const ManageTasksScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.parent.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  card: {
-    marginBottom: 20,
     backgroundColor: COLORS.common.white,
   },
-  cardTitle: {
-    fontSize: 20,
+  header: {
+    backgroundColor: COLORS.parent.primary,
+    paddingTop: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.common.text,
-    marginBottom: 15,
+    color: '#fff',
   },
-  input: {
-    marginBottom: 15,
+  statusFiltersContainer: {
+    backgroundColor: COLORS.common.white,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.common.border,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statusFilters: {
+    paddingHorizontal: 16,
+    gap: 8,
   },
-  halfInput: {
-    width: '48%',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.common.text,
-    marginBottom: 10,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  filterScrollView: {
-    marginBottom: 15,
-  },
-  filterChips: {
-    flexDirection: 'row',
-  },
-  chip: {
+  statusChip: {
+    backgroundColor: '#F5F5F5',
     marginRight: 8,
   },
-  chipSelected: {
+  statusChipSelected: {
     backgroundColor: COLORS.parent.primary,
   },
-  chipTextSelected: {
-    color: COLORS.common.white,
+  statusChipText: {
+    color: COLORS.common.text,
+    fontSize: 13,
+  },
+  statusChipTextSelected: {
+    color: '#fff',
     fontWeight: '600',
   },
-  chipTextUnselected: {
-    color: COLORS.common.text,
+  categoryFilterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.common.white,
   },
-  childrenList: {
+  categoryLabelRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 15,
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  childChip: {
+  categoryLabel: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+  },
+  categoryFilters: {
+    gap: 8,
+  },
+  categoryChip: {
+    backgroundColor: '#F5F5F5',
     marginRight: 8,
-    marginBottom: 8,
   },
-  createButton: {
-    marginTop: 10,
+  categoryChipSelected: {
+    backgroundColor: COLORS.parent.primary,
+  },
+  categoryChipText: {
+    color: COLORS.common.text,
+    fontSize: 13,
+  },
+  categoryChipTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  taskList: {
+    flex: 1,
+  },
+  taskListContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 12,
   },
   emptyText: {
     fontSize: 14,
     color: COLORS.common.textLight,
     textAlign: 'center',
-    paddingVertical: 20,
-    fontStyle: 'italic',
   },
-  taskItem: {
-    paddingVertical: 12,
+  taskCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  taskHeader: {
+  taskCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
+    gap: 12,
   },
   taskTitle: {
     fontSize: 16,
@@ -848,82 +988,187 @@ const styles = StyleSheet.create({
     color: COLORS.common.text,
     flex: 1,
   },
+  taskStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  taskStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   taskDescription: {
     fontSize: 14,
     color: COLORS.common.textLight,
-    marginBottom: 8,
+    marginBottom: 10,
     lineHeight: 20,
   },
-  statusChip: {
-    height: 28,
-    justifyContent: 'center',
+  taskChildRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  statusText: {
-    fontSize: 12,
-    color: COLORS.common.white,
-    lineHeight: 14,
-    marginVertical: 0,
-  },
-  taskChild: {
+  taskChildName: {
     fontSize: 14,
     color: COLORS.common.textLight,
-    marginBottom: 8,
   },
-  taskRewardRow: {
+  taskValuesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  taskReward: {
+  taskValues: {
     flexDirection: 'row',
-    gap: 15,
+    gap: 16,
   },
-  taskRewardText: {
+  taskValueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  taskValueText: {
     fontSize: 14,
+    fontWeight: '500',
     color: COLORS.common.text,
+  },
+  deleteButton: {
+    margin: -8,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
+    marginTop: 16,
   },
   approveButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.child.success,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 6,
+  },
+  approveButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   rejectButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 1,
     borderColor: COLORS.common.error,
+    gap: 6,
+  },
+  rejectButtonText: {
+    color: COLORS.common.error,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rejectionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
   },
   rejectionReason: {
+    flex: 1,
     fontSize: 13,
     color: COLORS.common.error,
-    fontStyle: 'italic',
-    marginTop: 8,
   },
-  deleteButton: {
-    margin: 0,
+  bottomSpacer: {
+    height: 20,
   },
-  divider: {
-    marginVertical: 12,
+  fabButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.parent.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  dialogText: {
-    marginBottom: 15,
+  fabText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Form styles
+  input: {
+    backgroundColor: '#fff',
+    marginBottom: 16,
+  },
+  inputMultiline: {
+    backgroundColor: '#fff',
+    marginBottom: 16,
+    minHeight: 80,
+  },
+  inputOutline: {
+    borderRadius: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.common.text,
+    marginBottom: 10,
+  },
+  formChipsScroll: {
+    marginBottom: 16,
+    marginHorizontal: -20,
+  },
+  formChipsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  childrenList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  formChip: {
+    backgroundColor: '#F5F5F5',
+  },
+  formChipSelected: {
+    backgroundColor: COLORS.parent.primary,
+  },
+  formChipText: {
     color: COLORS.common.text,
   },
-  dialogInput: {
-    marginTop: 10,
-  },
-  errorSnackbar: {
-    backgroundColor: COLORS.common.error,
-  },
-  successSnackbar: {
-    backgroundColor: COLORS.child.success,
+  formChipTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
   },
   recurrenceSection: {
-    marginTop: 15,
-    marginBottom: 15,
-    paddingTop: 15,
+    marginTop: 8,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.common.border,
   },
@@ -937,33 +1182,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.common.text,
-    marginTop: 15,
+    marginTop: 12,
     marginBottom: 10,
   },
   recurrenceOptions: {
-    marginTop: 10,
+    marginTop: 8,
   },
   segmentedButtons: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   weekdaysContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 10,
-  },
-  weekdayChip: {
     marginBottom: 8,
   },
+  weekdayChip: {
+    backgroundColor: '#F5F5F5',
+  },
   endDateSection: {
+    marginTop: 8,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.parent.primary,
+    paddingVertical: 16,
+    borderRadius: 25,
+    marginTop: 20,
+    gap: 8,
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dialogText: {
+    marginBottom: 15,
+    color: COLORS.common.text,
+  },
+  dialogInput: {
     marginTop: 10,
   },
-  recurrenceHint: {
-    fontSize: 12,
-    color: COLORS.common.textLight,
-    fontStyle: 'italic',
-    marginTop: 10,
-    textAlign: 'center',
+  errorSnackbar: {
+    backgroundColor: COLORS.common.error,
+  },
+  successSnackbar: {
+    backgroundColor: COLORS.child.success,
   },
 });
 

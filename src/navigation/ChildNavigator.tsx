@@ -53,6 +53,7 @@ const ChildNavigator: React.FC = () => {
         component={ChildTasksScreen}
         options={{
           title: 'Tarefas',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="clipboard-list" size={size} color={color} />
           ),
@@ -63,6 +64,7 @@ const ChildNavigator: React.FC = () => {
         component={RewardsShopScreen}
         options={{
           title: 'Loja',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="shopping" size={size} color={color} />
           ),
@@ -73,6 +75,7 @@ const ChildNavigator: React.FC = () => {
         component={SavingsScreen}
         options={{
           title: 'Poupança',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="piggy-bank" size={size} color={color} />
           ),
@@ -83,7 +86,7 @@ const ChildNavigator: React.FC = () => {
         component={ProfileScreen}
         options={{
           title: 'Perfil',
-          headerShadowVisible: false,
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" size={size} color={color} />
           ),

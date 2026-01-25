@@ -3,14 +3,38 @@
  * Migrado para React Query
  */
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Text, Card, ActivityIndicator, Chip, Badge } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ScrollView as HorizontalScroll } from 'react-native';
+import { Text, ActivityIndicator, Badge, Chip, Portal, Dialog, TextInput, Button, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts';
-import { useChildren, useTasks, useRewards, usePendingRedemptions, useNotifications } from '../../hooks';
+import {
+  useChildren,
+  useTasks,
+  useRewards,
+  usePendingRedemptions,
+  useNotifications,
+  useApproveTask,
+  useRejectTask,
+  useApproveRedemption,
+  useRejectRedemption,
+  useRefreshOnFocus,
+  useMarkAsRead,
+} from '../../hooks';
 import { COLORS } from '../../utils/constants';
 import NotificationsModal from '../../components/NotificationsModal';
+import { TaskAssignment } from '../../types/Task';
+import { Redemption } from '../../types/Reward';
+
+type PendingAction = {
+  id: string;
+  type: 'task' | 'redemption';
+  title: string;
+  childName: string;
+  coinValue: number;
+  xpValue?: number;
+  originalData: TaskAssignment | Redemption;
+};
 
 const ParentDashboardScreen: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -35,11 +59,34 @@ const ParentDashboardScreen: React.FC = () => {
     refetch: refetchNotifications,
   } = useNotifications();
 
+  // Atualizar dados quando a tela receber foco
+  useRefreshOnFocus(refetchTasks);
+  useRefreshOnFocus(refetchRedemptions);
+  useRefreshOnFocus(refetchNotifications);
+
+  // Mutation hooks
+  const { mutate: approveTask, isPending: approvingTask } = useApproveTask();
+  const { mutate: rejectTask, isPending: rejectingTask } = useRejectTask();
+  const { mutate: approveRedemption, isPending: approvingRedemption } = useApproveRedemption();
+  const { mutate: rejectRedemption, isPending: rejectingRedemption } = useRejectRedemption();
+  const markAsRead = useMarkAsRead();
+
+  const isProcessing = approvingTask || rejectingTask || approvingRedemption || rejectingRedemption;
+
   const loading = loadingChildren || loadingTasks || loadingRewards || loadingRedemptions;
   const [refreshing, setRefreshing] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [actionFilter, setActionFilter] = useState<'all' | 'task' | 'redemption'>('all');
 
-  // Contar notificações não lidas (tipos relevantes para pai)
+  // Estado do dialog de rejeicao
+  const [rejectDialogVisible, setRejectDialogVisible] = useState(false);
+  const [rejectingAction, setRejectingAction] = useState<PendingAction | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Estado do snackbar
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Contar notificacoes nao lidas (tipos relevantes para pai)
   const unreadCount = useMemo(() => {
     const parentNotificationTypes = ['TASK_COMPLETED', 'REDEMPTION_REQUESTED'];
     return notifications.filter(
@@ -47,25 +94,130 @@ const ParentDashboardScreen: React.FC = () => {
     ).length;
   }, [notifications]);
 
+  // Contar tarefas aprovadas
+  const approvedTasksCount = useMemo(() => {
+    return tasks.filter(t => t.status === 'APPROVED').length;
+  }, [tasks]);
+
+  // Combinar tarefas aguardando aprovacao e resgates pendentes
+  const pendingActions: PendingAction[] = useMemo(() => {
+    const taskActions: PendingAction[] = tasks
+      .filter(t => t.status === 'COMPLETED')
+      .map(t => ({
+        id: t.id,
+        type: 'task' as const,
+        title: t.task.title,
+        childName: t.childName,
+        coinValue: t.task.coinValue,
+        xpValue: t.task.xpValue,
+        originalData: t,
+      }));
+
+    const redemptionActions: PendingAction[] = pendingRedemptions.map(r => ({
+      id: r.id,
+      type: 'redemption' as const,
+      title: r.reward.name,
+      childName: r.childName,
+      coinValue: r.reward.coinCost,
+      originalData: r,
+    }));
+
+    return [...taskActions, ...redemptionActions];
+  }, [tasks, pendingRedemptions]);
+
+  // Filtrar acoes baseado no filtro selecionado
+  const filteredActions = useMemo(() => {
+    if (actionFilter === 'all') return pendingActions;
+    return pendingActions.filter(a => a.type === actionFilter);
+  }, [pendingActions, actionFilter]);
+
+  // Contadores por tipo
+  const taskActionsCount = pendingActions.filter(a => a.type === 'task').length;
+  const redemptionActionsCount = pendingActions.filter(a => a.type === 'redemption').length;
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetchChildren(), refetchTasks(), refetchRewards(), refetchRedemptions(), refetchNotifications()]);
     setRefreshing(false);
   };
 
-  // Contar tarefas aguardando aprovação
-  const getPendingApprovalCount = (): number => {
-    return tasks.filter((t) => t.status === 'COMPLETED').length;
+  // Marcar notificacao relacionada como lida
+  const markRelatedNotificationAsRead = (actionId: string, actionType: 'task' | 'redemption') => {
+    const referenceType = actionType === 'task' ? 'TASK' : 'REWARD';
+    const notificationType = actionType === 'task' ? 'TASK_COMPLETED' : 'REDEMPTION_REQUESTED';
+
+    const relatedNotification = notifications.find(
+      n => n.referenceId === actionId &&
+           n.referenceType === referenceType &&
+           n.type === notificationType &&
+           !n.isRead
+    );
+
+    if (relatedNotification) {
+      markAsRead.mutate(relatedNotification.id);
+    }
   };
 
-  // Contar tarefas por status
-  const getTasksCountByStatus = (status: string): number => {
-    return tasks.filter((t) => t.status === status).length;
+  const handleApprove = (action: PendingAction) => {
+    if (action.type === 'task') {
+      approveTask(action.id, {
+        onSuccess: () => {
+          markRelatedNotificationAsRead(action.id, 'task');
+          setSnackbarMessage('Tarefa aprovada com sucesso!');
+        },
+      });
+    } else {
+      approveRedemption(action.id, {
+        onSuccess: () => {
+          markRelatedNotificationAsRead(action.id, 'redemption');
+          setSnackbarMessage('Resgate aprovado com sucesso!');
+        },
+      });
+    }
   };
 
-  // Obter tarefas por criança
-  const getTasksByChild = (childId: string) => {
-    return tasks.filter((t) => t.childId === childId);
+  const handleReject = (action: PendingAction) => {
+    setRejectingAction(action);
+    setRejectionReason('');
+    setRejectDialogVisible(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectingAction) return;
+
+    if (rejectingAction.type === 'task') {
+      rejectTask(
+        { assignmentId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
+        {
+          onSuccess: () => {
+            markRelatedNotificationAsRead(rejectingAction.id, 'task');
+            setRejectDialogVisible(false);
+            setRejectingAction(null);
+            setRejectionReason('');
+            setSnackbarMessage('Tarefa rejeitada com sucesso!');
+          },
+        }
+      );
+    } else {
+      rejectRedemption(
+        { redemptionId: rejectingAction.id, data: { rejectionReason: rejectionReason.trim() } },
+        {
+          onSuccess: () => {
+            markRelatedNotificationAsRead(rejectingAction.id, 'redemption');
+            setRejectDialogVisible(false);
+            setRejectingAction(null);
+            setRejectionReason('');
+            setSnackbarMessage('Resgate rejeitado com sucesso!');
+          },
+        }
+      );
+    }
+  };
+
+  const handleCloseRejectDialog = () => {
+    setRejectDialogVisible(false);
+    setRejectingAction(null);
+    setRejectionReason('');
   };
 
   if (loading && !refreshing) {
@@ -77,18 +229,16 @@ const ParentDashboardScreen: React.FC = () => {
     );
   }
 
-  const pendingApprovalCount = getPendingApprovalCount();
-
   return (
     <ScrollView
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
-      {/* Cabeçalho */}
+      {/* Cabecalho */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greeting}>Olá, {user?.fullName}! 👋</Text>
+            <Text style={styles.greeting}>Olá, {user?.fullName}!</Text>
             <Text style={styles.subtitle}>Painel de Controle da Família</Text>
           </View>
           <TouchableOpacity
@@ -96,7 +246,7 @@ const ParentDashboardScreen: React.FC = () => {
             onPress={() => setShowNotificationsModal(true)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="bell" size={24} color="#fff" />
+            <MaterialCommunityIcons name="bell-outline" size={24} color="#fff" />
             {unreadCount > 0 && (
               <Badge size={18} style={styles.notificationBadge}>
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -106,276 +256,247 @@ const ParentDashboardScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Alerta de tarefas aguardando aprovação */}
-      {pendingApprovalCount > 0 && (
-        <Card style={styles.alertCard}>
-          <Card.Content style={styles.alertContent}>
-            <View style={styles.alertIconContainer}>
-              <MaterialCommunityIcons name="clipboard-check" size={32} color="#fff" />
-            </View>
-            <View style={styles.alertTextContainer}>
-              <Text style={styles.alertTitle}>Tarefas para Revisar</Text>
-              <Text style={styles.alertMessage}>
-                {pendingApprovalCount} tarefa{pendingApprovalCount > 1 ? 's' : ''} aguardando
-                aprovação
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => navigation.navigate('Tasks' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="arrow-right" size={18} color={COLORS.parent.primary} />
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-      )}
+      {/* Cards de Estatisticas - 4 em uma linha */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <View style={[styles.statIconCircle, { backgroundColor: '#F3E5F5' }]}>
+            <MaterialCommunityIcons name="account-group-outline" size={24} color={COLORS.parent.primary} />
+          </View>
+          <Text style={styles.statValue}>{children.length}</Text>
+          <Text style={styles.statLabel}>Crianças</Text>
+        </View>
 
-      {/* Alerta de resgates pendentes */}
-      {pendingRedemptions.length > 0 && (
-        <Card style={[styles.alertCard, styles.alertCardRedemption]}>
-          <Card.Content style={styles.alertContent}>
-            <View style={styles.alertIconContainer}>
-              <MaterialCommunityIcons name="gift" size={32} color="#fff" />
-            </View>
-            <View style={styles.alertTextContainer}>
-              <Text style={styles.alertTitle}>Resgates Pendentes!</Text>
-              <Text style={styles.alertMessage}>
-                {pendingRedemptions.length} resgate{pendingRedemptions.length > 1 ? 's' : ''} aguardando
-                sua aprovação
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.alertButton, styles.alertButtonRedemption]}
-              onPress={() => navigation.navigate('Rewards' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="arrow-right" size={18} color="#FF9800" />
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-      )}
+        <View style={styles.statCard}>
+          <View style={[styles.statIconCircle, { backgroundColor: '#E8F5E9' }]}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={24} color="#4CAF50" />
+          </View>
+          <Text style={styles.statValue}>{tasks.length}</Text>
+          <Text style={styles.statLabel}>Tarefas</Text>
+        </View>
 
-      {/* Cards de Estatísticas */}
-      <View style={styles.statsGrid}>
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <View style={[styles.iconCircle, { backgroundColor: '#E8EAF6' }]}>
-              <MaterialCommunityIcons
-                name="account-group"
-                size={28}
-                color={COLORS.parent.primary}
-              />
-            </View>
-            <Text style={styles.statValue}>{children.length}</Text>
-            <Text style={styles.statLabel}>Crianças</Text>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: COLORS.parent.primary }]}
-              onPress={() => navigation.navigate('Children' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="cog" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Gerenciar</Text>
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
+        <View style={styles.statCard}>
+          <View style={[styles.statIconCircle, { backgroundColor: '#FFF3E0' }]}>
+            <MaterialCommunityIcons name="gift-outline" size={24} color="#FF9800" />
+          </View>
+          <Text style={styles.statValue}>{rewards.length}</Text>
+          <Text style={styles.statLabel}>Prêmios</Text>
+        </View>
 
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <View style={[styles.iconCircle, { backgroundColor: '#E8F5E9' }]}>
-              <MaterialCommunityIcons name="clipboard-list" size={28} color="#4CAF50" />
-            </View>
-            <Text style={styles.statValue}>{tasks.length}</Text>
-            <Text style={styles.statLabel}>Tarefas</Text>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-              onPress={() => navigation.navigate('Tasks' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Criar</Text>
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <View style={[styles.iconCircle, { backgroundColor: '#FFF3E0' }]}>
-              <MaterialCommunityIcons name="gift" size={28} color="#FF9800" />
-            </View>
-            <Text style={styles.statValue}>{rewards.length}</Text>
-            <Text style={styles.statLabel}>Recompensas</Text>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
-              onPress={() => navigation.navigate('Rewards' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Criar</Text>
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <View style={[styles.iconCircle, { backgroundColor: '#F1F8E9' }]}>
-              <MaterialCommunityIcons name="check-circle" size={28} color="#8BC34A" />
-            </View>
-            <Text style={styles.statValue}>{getTasksCountByStatus('APPROVED')}</Text>
-            <Text style={styles.statLabel}>Aprovadas</Text>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#8BC34A' }]}
-              onPress={() => navigation.navigate('Tasks' as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="eye" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Ver todas</Text>
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
+        <View style={[styles.statCard, styles.statCardHighlighted]}>
+          <View style={[styles.statIconCircle, { backgroundColor: '#E8F5E9' }]}>
+            <MaterialCommunityIcons name="check-circle-outline" size={24} color={COLORS.child.success} />
+          </View>
+          <Text style={styles.statValue}>{approvedTasksCount}</Text>
+          <Text style={styles.statLabel}>Aprovadas</Text>
+        </View>
       </View>
 
-      {/* Resumo por Criança */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.cardHeaderWithButton}>
-            <View style={styles.cardHeader}>
-              <MaterialCommunityIcons
-                name="account-multiple"
-                size={24}
-                color={COLORS.parent.primary}
-              />
-              <Text style={styles.cardTitle}>Resumo por Criança</Text>
-            </View>
-            {children.length > 0 && (
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={() => navigation.navigate('Children' as never)}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="cog" size={16} color="#fff" />
-                <Text style={styles.headerActionButtonText}>Gerenciar</Text>
-              </TouchableOpacity>
+      {/* Secao Acoes Necessarias */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <MaterialCommunityIcons name="auto-fix" size={20} color={COLORS.parent.primary} />
+            <Text style={styles.sectionTitle}>Ações Necessárias</Text>
+            {pendingActions.length > 0 && (
+              <Badge size={22} style={styles.countBadge}>
+                {pendingActions.length}
+              </Badge>
             )}
           </View>
+        </View>
 
-          {children.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={[styles.emptyIconCircle]}>
-                <MaterialCommunityIcons
-                  name="account-plus"
-                  size={48}
-                  color={COLORS.parent.primary}
-                />
-              </View>
-              <Text style={styles.emptyText}>Nenhuma criança cadastrada</Text>
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={() => navigation.navigate('Children' as never)}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-                <Text style={styles.emptyButtonText}>Cadastrar Criança</Text>
-              </TouchableOpacity>
+        {/* Filtros */}
+        {pendingActions.length > 0 && (
+          <HorizontalScroll
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScrollView}
+            contentContainerStyle={styles.filterContainer}
+          >
+            <Chip
+              selected={actionFilter === 'all'}
+              onPress={() => setActionFilter('all')}
+              style={[styles.filterChip, actionFilter === 'all' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'all' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Todas ({pendingActions.length})
+            </Chip>
+            <Chip
+              selected={actionFilter === 'task'}
+              onPress={() => setActionFilter('task')}
+              style={[styles.filterChip, actionFilter === 'task' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'task' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Tarefas ({taskActionsCount})
+            </Chip>
+            <Chip
+              selected={actionFilter === 'redemption'}
+              onPress={() => setActionFilter('redemption')}
+              style={[styles.filterChip, actionFilter === 'redemption' && styles.filterChipSelected]}
+              textStyle={[styles.filterChipText, actionFilter === 'redemption' && styles.filterChipTextSelected]}
+              showSelectedOverlay={false}
+            >
+              Recompensas ({redemptionActionsCount})
+            </Chip>
+          </HorizontalScroll>
+        )}
+
+        {pendingActions.length === 0 ? (
+          <View style={styles.emptyActionsContainer}>
+            <View style={styles.emptyActionsIconCircle}>
+              <MaterialCommunityIcons name="check-circle-outline" size={48} color={COLORS.child.success} />
             </View>
-          ) : (
-            children.map((child) => {
-              const childTasks = getTasksByChild(child.id);
-              const pending = childTasks.filter((t) => t.status === 'PENDING').length;
-              const completed = childTasks.filter((t) => t.status === 'COMPLETED').length;
-              const approved = childTasks.filter((t) => t.status === 'APPROVED').length;
+            <Text style={styles.emptyActionsTitle}>Tudo em dia!</Text>
+            <Text style={styles.emptyActionsText}>
+              Não há ações pendentes no momento.
+            </Text>
+          </View>
+        ) : filteredActions.length === 0 ? (
+          <View style={styles.emptyActionsContainer}>
+            <View style={styles.emptyActionsIconCircle}>
+              <MaterialCommunityIcons
+                name={actionFilter === 'task' ? 'clipboard-text-outline' : 'gift-outline'}
+                size={48}
+                color={COLORS.common.textLight}
+              />
+            </View>
+            <Text style={styles.emptyActionsTitle}>Nenhuma ação</Text>
+            <Text style={styles.emptyActionsText}>
+              Não há {actionFilter === 'task' ? 'tarefas' : 'recompensas'} pendentes.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.actionsContainer}>
+            {filteredActions.map((action) => (
+              <View key={`${action.type}-${action.id}`} style={styles.actionCard}>
+                {/* Badge no canto superior direito */}
+                <View style={[
+                  styles.actionTypeBadge,
+                  { backgroundColor: action.type === 'task' ? '#4CAF50' : '#FF9800' }
+                ]}>
+                  <Text style={styles.actionTypeBadgeText}>
+                    {action.type === 'task' ? 'Tarefa' : 'Recompensa'}
+                  </Text>
+                </View>
 
-              return (
-                <View key={child.id} style={styles.childItem}>
-                  <View style={styles.childInfo}>
-                    <Text style={styles.childName}>{child.fullName}</Text>
-                    <Text style={styles.childUsername}>@{child.username}</Text>
+                <View style={[
+                  styles.actionIconContainer,
+                  { backgroundColor: action.type === 'task' ? '#E8F5E9' : '#FFF3E0' }
+                ]}>
+                  <MaterialCommunityIcons
+                    name={action.type === 'task' ? 'clipboard-check-outline' : 'gift-outline'}
+                    size={24}
+                    color={action.type === 'task' ? '#4CAF50' : '#FF9800'}
+                  />
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionTitle} numberOfLines={1}>{action.title}</Text>
+                  <View style={styles.actionChildRow}>
+                    <MaterialCommunityIcons name="account-outline" size={14} color={COLORS.common.textLight} />
+                    <Text style={styles.actionChildName}>{action.childName}</Text>
                   </View>
-                  <View style={styles.childStats}>
-                    {completed > 0 && (
-                      <Chip style={styles.childChip} textStyle={styles.childChipText} icon="clock">
-                        {completed}
-                      </Chip>
+                  <View style={styles.actionValuesRow}>
+                    <View style={styles.actionValueItem}>
+                      <MaterialCommunityIcons name="hand-coin" size={16} color="#FFC107" />
+                      <Text style={styles.actionValueText}>{action.coinValue}</Text>
+                    </View>
+                    {action.xpValue && (
+                      <View style={styles.actionValueItem}>
+                        <MaterialCommunityIcons name="star-outline" size={16} color="#FFC107" />
+                        <Text style={styles.actionValueText}>{action.xpValue} XP</Text>
+                      </View>
                     )}
-                    <Chip
-                      style={[styles.childChip, styles.childChipPending]}
-                      textStyle={styles.childChipText}
-                      icon="clipboard-text"
-                    >
-                      {pending}
-                    </Chip>
-                    <Chip
-                      style={[styles.childChip, styles.childChipApproved]}
-                      textStyle={styles.childChipText}
-                      icon="check"
-                    >
-                      {approved}
-                    </Chip>
                   </View>
                 </View>
-              );
-            })
-          )}
-        </Card.Content>
-      </Card>
-
-      {/* Status das Tarefas */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.cardHeaderWithButton}>
-            <View style={styles.cardHeader}>
-              <MaterialCommunityIcons name="chart-donut" size={24} color={COLORS.parent.primary} />
-              <Text style={styles.cardTitle}>Status das Tarefas</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={() => navigation.navigate('Tasks' as never)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="eye" size={16} color="#fff" />
-              <Text style={styles.headerActionButtonText}>Ver todas</Text>
-            </TouchableOpacity>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => handleReject(action)}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="close" size={20} color={COLORS.common.error} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.approveButton}
+                    onPress={() => handleApprove(action)}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
           </View>
+        )}
+      </View>
 
-          <View style={styles.statusRow}>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: COLORS.child.warning }]} />
-              <Text style={styles.statusLabel}>Pendentes</Text>
-              <Text style={styles.statusValue}>{getTasksCountByStatus('PENDING')}</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: COLORS.child.primary }]} />
-              <Text style={styles.statusLabel}>Aguardando</Text>
-              <Text style={styles.statusValue}>{getTasksCountByStatus('COMPLETED')}</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: COLORS.child.success }]} />
-              <Text style={styles.statusLabel}>Aprovadas</Text>
-              <Text style={styles.statusValue}>{getTasksCountByStatus('APPROVED')}</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: COLORS.common.error }]} />
-              <Text style={styles.statusLabel}>Rejeitadas</Text>
-              <Text style={styles.statusValue}>{getTasksCountByStatus('REJECTED')}</Text>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Botão de Logout */}
+      {/* Botao de Logout */}
       <TouchableOpacity style={styles.logoutButton} onPress={signOut} activeOpacity={0.8}>
-        <MaterialCommunityIcons name="logout" size={20} color="#fff" />
+        <MaterialCommunityIcons name="logout" size={20} color={COLORS.common.error} />
         <Text style={styles.logoutButtonText}>Sair da Conta</Text>
       </TouchableOpacity>
 
       <View style={styles.bottomSpacer} />
 
-      {/* Modal de Notificações */}
+      {/* Modal de Notificacoes */}
       <NotificationsModal
         visible={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
         userType="parent"
       />
+
+      {/* Dialog de Rejeicao */}
+      <Portal>
+        <Dialog visible={rejectDialogVisible} onDismiss={handleCloseRejectDialog}>
+          <Dialog.Title>
+            {rejectingAction?.type === 'task' ? 'Rejeitar Tarefa' : 'Rejeitar Resgate'}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogText}>
+              Informe o motivo da rejeição para {rejectingAction?.childName}:
+            </Text>
+            <TextInput
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              mode="outlined"
+              multiline
+              numberOfLines={3}
+              placeholder={rejectingAction?.type === 'task' 
+                ? "Ex: Tarefa não foi completada corretamente" 
+                : "Ex: Não pode jogar videogame hoje"
+              }
+              style={styles.dialogInput}
+              outlineColor={COLORS.common.border}
+              activeOutlineColor={COLORS.parent.primary}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleCloseRejectDialog}>Cancelar</Button>
+            <Button
+              onPress={handleConfirmReject}
+              disabled={!rejectionReason.trim() || isProcessing}
+              loading={isProcessing}
+              textColor={COLORS.common.error}
+            >
+              Rejeitar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Snackbar de feedback */}
+      <Snackbar
+        visible={!!snackbarMessage}
+        onDismiss={() => setSnackbarMessage('')}
+        duration={3000}
+        style={styles.snackbar}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </ScrollView>
   );
 };
@@ -383,24 +504,29 @@ const ParentDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.parent.background,
+    backgroundColor: COLORS.common.white,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.parent.background,
+    backgroundColor: COLORS.common.white,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: COLORS.common.textLight,
   },
   header: {
     backgroundColor: COLORS.parent.primary,
     padding: 20,
-    paddingTop: 10,
-    paddingBottom: 25,
+    paddingTop: 16,
+    paddingBottom: 30,
+  },
+  headerLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 8,
   },
   headerTop: {
     flexDirection: 'row',
@@ -423,302 +549,269 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.common.error,
   },
   greeting: {
     fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#E3F2FD',
+    color: 'rgba(255,255,255,0.8)',
   },
-  alertCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: COLORS.parent.primary,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: COLORS.parent.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  alertContent: {
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  alertIconContainer: {
-    marginRight: 12,
-  },
-  alertTextContainer: {
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  alertMessage: {
-    fontSize: 13,
-    color: '#E3F2FD',
-  },
-  alertButton: {
-    backgroundColor: '#fff',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  alertCardRedemption: {
-    backgroundColor: '#FF9800',
-    marginTop: 12,
-    shadowColor: '#FF9800',
-  },
-  alertButtonRedemption: {
-    backgroundColor: '#fff',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: 12,
-    marginTop: 16,
+    marginTop: -15,
+    gap: 8,
   },
   statCard: {
-    width: '48%',
-    margin: '1%',
+    flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  statContent: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    paddingVertical: 20,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.common.text,
-    marginTop: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: COLORS.common.textLight,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  headerActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.parent.primary,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    gap: 4,
-    shadowColor: COLORS.parent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  headerActionButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  card: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
+    elevation: 3,
   },
-  cardHeader: {
-    flexDirection: 'row',
+  statCardHighlighted: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#A5D6A7',
+  },
+  statIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
-  cardHeaderWithButton: {
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.common.text,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: COLORS.common.textLight,
+    marginTop: 2,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  cardTitle: {
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.common.text,
-    marginLeft: 10,
   },
-  emptyState: {
+  countBadge: {
+    backgroundColor: COLORS.parent.primary,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
   },
-  emptyIconCircle: {
+  viewAllText: {
+    fontSize: 14,
+    color: COLORS.parent.primary,
+    fontWeight: '500',
+  },
+  emptyActionsContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  emptyActionsIconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#E8F5E9',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
   },
-  emptyText: {
-    fontSize: 15,
-    color: COLORS.common.textLight,
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.parent.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 24,
-    gap: 8,
-    shadowColor: COLORS.parent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  childItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  childInfo: {
-    flex: 1,
-  },
-  childName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.common.text,
-    marginBottom: 4,
-  },
-  childUsername: {
-    fontSize: 13,
-    color: COLORS.parent.primary,
-  },
-  childStats: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  childChip: {
-    height: 28,
-    backgroundColor: COLORS.child.primary,
-  },
-  childChipPending: {
-    backgroundColor: COLORS.child.warning,
-  },
-  childChipApproved: {
-    backgroundColor: COLORS.child.success,
-  },
-  childChipText: {
-    fontSize: 12,
-    color: '#fff',
-    marginVertical: 0,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statusItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  statusLabel: {
-    fontSize: 11,
-    color: COLORS.common.textLight,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  statusValue: {
-    fontSize: 20,
+  emptyActionsTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.common.text,
+    marginBottom: 8,
+  },
+  emptyActionsText: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    textAlign: 'center',
+  },
+  filterScrollView: {
+    marginBottom: 16,
+    marginHorizontal: -16,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    height: 36,
+  },
+  filterChipSelected: {
+    backgroundColor: COLORS.parent.primary,
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: COLORS.common.textLight,
+  },
+  filterChipTextSelected: {
+    color: '#fff',
+  },
+  actionsContainer: {
+    gap: 16,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    paddingTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.common.text,
+    marginBottom: 4,
+  },
+  actionTypeBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  actionTypeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  actionChildRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  actionChildName: {
+    fontSize: 13,
+    color: COLORS.common.textLight,
+  },
+  actionValuesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionValueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionValueText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.common.text,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 8,
+  },
+  rejectButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFEBEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  approveButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.child.success,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f44336',
+    backgroundColor: '#fff',
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 32,
     paddingVertical: 14,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.common.error,
     gap: 8,
-    shadowColor: '#f44336',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   logoutButtonText: {
-    color: '#fff',
+    color: COLORS.common.error,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   bottomSpacer: {
     height: 30,
+  },
+  dialogText: {
+    fontSize: 14,
+    color: COLORS.common.textLight,
+    marginBottom: 16,
+  },
+  dialogInput: {
+    backgroundColor: COLORS.common.white,
+  },
+  snackbar: {
+    backgroundColor: COLORS.child.success,
   },
 });
 

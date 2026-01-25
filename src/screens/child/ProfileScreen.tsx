@@ -1,19 +1,44 @@
+/**
+ * Tela de Perfil da Criança
+ * Redesign com header roxo e cards modernos
+ */
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { Text, Card, Button, ProgressBar, Avatar, ActivityIndicator, Snackbar } from 'react-native-paper';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  StatusBar,
+  Platform,
+  Dimensions,
+} from 'react-native';
+import { Text, ActivityIndicator, Snackbar, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts';
 import { COLORS } from '../../utils/constants';
-import { gamificationService, walletService, userService } from '../../services';
+import { gamificationService, walletService, userService, taskService } from '../../services';
 import { Gamification, Wallet, Badge } from '../../types';
 import { AvatarSelector } from '../../components';
 import { getAvatarEmoji } from '../../utils/avatars';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24;
+
+// Cores do tema roxo
+const PURPLE_THEME = {
+  primary: '#9575CD',
+  light: '#EDE7F6',
+  dark: '#7E57C2',
+  gradient: '#B39DDB',
+};
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [gamification, setGamification] = useState<Gamification | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [completedTasksCount, setCompletedTasksCount] = useState(0);
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -28,24 +53,21 @@ const ProfileScreen: React.FC = () => {
   const loadProfileData = async () => {
     try {
       setLoading(true);
-      const [gamificationData, walletData] = await Promise.all([
+      const [gamificationData, walletData, tasksData] = await Promise.all([
         gamificationService.getGamification(),
         walletService.getWallet(),
+        taskService.getTasks().catch(() => []),
       ]);
       setGamification(gamificationData);
       setWallet(walletData);
+      // Contar tarefas completadas
+      const completed = tasksData.filter((t: any) => t.status === 'APPROVED').length;
+      setCompletedTasksCount(completed);
     } catch (error) {
       console.error('Erro ao carregar dados do perfil:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Função para pegar as iniciais do nome
-  const getInitials = (name: string): string => {
-    const names = name.trim().split(' ');
-    if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
   // Função para calcular progresso do XP (0 a 1)
@@ -65,8 +87,8 @@ const ProfileScreen: React.FC = () => {
     try {
       setUpdatingAvatar(true);
       const updatedUser = await userService.updateAvatar(avatarId);
-      updateUser(updatedUser); // Atualiza o contexto com o novo user
-      setSnackbarMessage('Avatar atualizado com sucesso! 🎉');
+      updateUser(updatedUser);
+      setSnackbarMessage('Avatar atualizado com sucesso!');
       setSnackbarVisible(true);
     } catch (error) {
       console.error('Erro ao atualizar avatar:', error);
@@ -103,143 +125,176 @@ const ProfileScreen: React.FC = () => {
       case 'DAYS_SAVED':
         return `Mantenha moedas guardadas por ${badge.criteriaValue} dias`;
       default:
-        return 'Critério desconhecido';
+        return 'Criterio desconhecido';
     }
+  };
+
+  // Função para formatar números
+  const formatNumber = (num: number): string => {
+    return num.toLocaleString('pt-BR');
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.child.primary} />
+        <ActivityIndicator size="large" color={PURPLE_THEME.primary} />
         <Text style={styles.loadingText}>Carregando perfil...</Text>
       </View>
     );
   }
 
   const avatarEmoji = getAvatarEmoji(user?.avatarUrl);
+  const unlockedBadgesCount = getUnlockedBadges();
+  const totalBadges = gamification?.badges.length || 0;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Cabeçalho com Avatar */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => setShowAvatarSelector(true)}
-          activeOpacity={0.8}
-          disabled={updatingAvatar}
-        >
-          {avatarEmoji ? (
+    <View style={styles.container}>
+      <StatusBar backgroundColor={PURPLE_THEME.primary} barStyle="light-content" />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header Roxo */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Meu Perfil</Text>
+
+          {/* Avatar */}
+          <TouchableOpacity
+            onPress={() => setShowAvatarSelector(true)}
+            activeOpacity={0.8}
+            disabled={updatingAvatar}
+            style={styles.avatarWrapper}
+          >
             <View style={styles.avatarContainer}>
-              <Text style={styles.avatarEmoji}>{avatarEmoji}</Text>
-              <View style={styles.editBadge}>
-                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-              </View>
+              {avatarEmoji ? (
+                <Text style={styles.avatarEmoji}>{avatarEmoji}</Text>
+              ) : (
+                <MaterialCommunityIcons name="account" size={60} color={PURPLE_THEME.primary} />
+              )}
             </View>
-          ) : (
-            <View>
-              <Avatar.Text
-                size={100}
-                label={user?.fullName ? getInitials(user.fullName) : '??'}
-                style={styles.avatar}
-                labelStyle={styles.avatarLabel}
-              />
-              <View style={styles.editBadge}>
-                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-              </View>
+            <View style={styles.editBadge}>
+              <MaterialCommunityIcons name="pencil" size={14} color="#fff" />
             </View>
-          )}
-        </TouchableOpacity>
-        <Text style={styles.userName}>{user?.fullName || 'Sem nome'}</Text>
-        <Text style={styles.userEmail}>@{user?.username || 'sem-usuario'}</Text>
-      </View>
+          </TouchableOpacity>
 
-      {/* Card de Nível e XP */}
-      {gamification && (
-        <Card style={styles.levelCard}>
-          <Card.Content>
+          {/* Nome */}
+          <Text style={styles.userName}>{user?.fullName || 'Sem nome'}</Text>
+
+          {/* Indicador de Badges */}
+          <View style={styles.badgesIndicator}>
+            <View style={styles.badgeIndicatorItem}>
+              <Text style={styles.badgeIndicatorEmoji}>🏆</Text>
+              <View style={styles.badgeIndicatorCount}>
+                <Text style={styles.badgeIndicatorCountText}>{unlockedBadgesCount}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Card de Nível */}
+          <View style={styles.levelCard}>
             <View style={styles.levelHeader}>
-              <MaterialCommunityIcons name="trophy" size={32} color="#FFD700" />
-              <Text style={styles.levelTitle}>Nível {gamification.currentLevel}</Text>
+              <View style={styles.levelLeft}>
+                <View style={styles.levelIconCircle}>
+                  <MaterialCommunityIcons name="star" size={20} color="#333" />
+                </View>
+                <Text style={styles.levelTitle}>Nível {gamification?.currentLevel || 1}</Text>
+              </View>
+              <Text style={styles.levelXp}>
+                {gamification?.currentXp || 0}/{gamification?.xpForNextLevel || 100} XP
+              </Text>
             </View>
-            <Text style={styles.xpText}>
-              {gamification.currentXp} / {gamification.xpForNextLevel} XP
-            </Text>
-            <ProgressBar
-              progress={getXpProgress()}
-              color="#4CAF50"
-              style={styles.progressBar}
-            />
+
+            {/* Progress Bar customizada */}
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: `${getXpProgress() * 100}%` }]} />
+              <View style={[styles.progressDot, { left: '33%' }]} />
+              <View style={[styles.progressDot, { left: '66%' }]} />
+            </View>
+
             <Text style={styles.xpNeeded}>
-              Faltam {gamification.xpNeededForNextLevel} XP para o próximo nível! 🚀
+              {gamification?.xpNeededForNextLevel || 100} XP para o proximo nível!
             </Text>
-          </Card.Content>
-        </Card>
-      )}
+          </View>
 
-      {/* Estatísticas em Grid */}
-      <View style={styles.statsGrid}>
-        {/* Saldo Atual */}
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="currency-usd" size={32} color="#4CAF50" />
-            <Text style={styles.statValue}>{wallet?.balance || 0}</Text>
-            <Text style={styles.statLabel}>Moedas</Text>
-          </Card.Content>
-        </Card>
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            {/* Moedas */}
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>🪙</Text>
+              <Text style={styles.statValue}>
+                {formatNumber(wallet?.balance || 0)}
+              </Text>
+              <Text style={styles.statLabel}>Moedas</Text>
+            </View>
 
-        {/* Total Ganho */}
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="cash-plus" size={32} color="#2196F3" />
-            <Text style={styles.statValue}>{wallet?.totalEarned || 0}</Text>
-            <Text style={styles.statLabel}>Total Ganho</Text>
-          </Card.Content>
-        </Card>
+            {/* Tarefas */}
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>✅</Text>
+              <Text style={styles.statValue}>
+                {completedTasksCount}
+              </Text>
+              <Text style={styles.statLabel}>Tarefas</Text>
+            </View>
 
-        {/* Total Gasto */}
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="cart" size={32} color="#FF9800" />
-            <Text style={styles.statValue}>{wallet?.totalSpent || 0}</Text>
-            <Text style={styles.statLabel}>Total Gasto</Text>
-          </Card.Content>
-        </Card>
+            {/* Ganhos */}
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>📈</Text>
+              <Text style={styles.statValue}>
+                {formatNumber(wallet?.totalEarned || 0)}
+              </Text>
+              <Text style={styles.statLabel}>Ganhos</Text>
+            </View>
 
-        {/* Badges */}
-        <Card style={styles.statCard}>
-          <Card.Content style={styles.statContent}>
-            <MaterialCommunityIcons name="medal" size={32} color="#9C27B0" />
-            <Text style={styles.statValue}>{getUnlockedBadges()}</Text>
-            <Text style={styles.statLabel}>Badges</Text>
-          </Card.Content>
-        </Card>
-      </View>
+            {/* Badges */}
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>🏅</Text>
+              <Text style={styles.statValue}>
+                {unlockedBadgesCount}
+              </Text>
+              <Text style={styles.statLabel}>Badges</Text>
+            </View>
+          </View>
 
-      {/* Seção de Badges */}
-      {gamification && (
-        <Card style={styles.badgesCard}>
-          <Card.Content>
-            <Text style={styles.badgesTitle}>🏆 Minhas Conquistas</Text>
-            {gamification.badges.length > 0 ? (
-              <View style={styles.badgesGrid}>
+          {/* Conquistas */}
+          <View style={styles.achievementsCard}>
+            <View style={styles.achievementsHeader}>
+              <View style={styles.achievementsTitleRow}>
+                <Text style={styles.achievementsEmoji}>🏆</Text>
+                <Text style={styles.achievementsTitle}>Conquistas</Text>
+              </View>
+              <Text style={styles.achievementsCount}>
+                {unlockedBadgesCount}/{totalBadges}
+              </Text>
+            </View>
+
+            {gamification && gamification.badges.length > 0 ? (
+              <View style={styles.achievementsGrid}>
                 {gamification.badges.map((badge) => (
                   <TouchableOpacity
                     key={badge.id}
-                    style={[
-                      styles.badgeItem,
-                      !badge.unlocked && styles.badgeItemLocked,
-                    ]}
+                    style={styles.achievementItem}
                     onPress={() => handleBadgePress(badge)}
                     activeOpacity={0.7}
                   >
-                    <MaterialCommunityIcons
-                      name={badge.iconName as any}
-                      size={40}
-                      color={badge.unlocked ? '#FFD700' : '#CCCCCC'}
-                    />
+                    <View
+                      style={[
+                        styles.achievementIconContainer,
+                        badge.unlocked
+                          ? styles.achievementIconUnlocked
+                          : styles.achievementIconLocked,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={badge.iconName as any}
+                        size={28}
+                        color={badge.unlocked ? '#FFD700' : '#BDBDBD'}
+                      />
+                    </View>
                     <Text
                       style={[
-                        styles.badgeName,
-                        !badge.unlocked && styles.badgeNameLocked,
+                        styles.achievementName,
+                        !badge.unlocked && styles.achievementNameLocked,
                       ]}
                       numberOfLines={2}
                     >
@@ -249,33 +304,28 @@ const ProfileScreen: React.FC = () => {
                 ))}
               </View>
             ) : (
-              <View style={styles.emptyBadges}>
-                <MaterialCommunityIcons name="trophy-outline" size={64} color="#CCCCCC" />
-                <Text style={styles.emptyBadgesText}>
-                  Nenhuma conquista ainda!
-                </Text>
-                <Text style={styles.emptyBadgesHint}>
-                  Complete tarefas e junte moedas para desbloquear badges incríveis! 🚀
+              <View style={styles.emptyAchievements}>
+                <MaterialCommunityIcons name="trophy-outline" size={48} color="#BDBDBD" />
+                <Text style={styles.emptyAchievementsText}>
+                  Nenhuma conquista disponível ainda
                 </Text>
               </View>
             )}
-          </Card.Content>
-        </Card>
-      )}
+          </View>
 
-      {/* Botão de Logout */}
-      <Button
-        mode="contained"
-        onPress={signOut}
-        style={styles.logoutButton}
-        buttonColor="#f44336"
-        icon="logout"
-      >
-        Sair da Conta
-      </Button>
+          {/* Botão de Logout */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={signOut}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="logout" size={22} color="#E91E63" />
+            <Text style={styles.logoutButtonText}>Sair da Conta</Text>
+          </TouchableOpacity>
 
-      {/* Espaçamento final */}
-      <View style={styles.bottomSpacer} />
+          <View style={styles.bottomSpacer} />
+        </View>
+      </ScrollView>
 
       {/* Modal de Seleção de Avatar */}
       <AvatarSelector
@@ -357,7 +407,7 @@ const ProfileScreen: React.FC = () => {
                     <Text style={styles.modalInfoEmoji}>📖</Text>
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>Descrição</Text>
+                    <Text style={styles.modalInfoLabel}>Descricao</Text>
                     <Text style={styles.modalInfoText}>{selectedBadge.description}</Text>
                   </View>
                 </View>
@@ -379,7 +429,7 @@ const ProfileScreen: React.FC = () => {
                     <Text style={styles.modalInfoEmoji}>⭐</Text>
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>Bônus de XP</Text>
+                    <Text style={styles.modalInfoLabel}>Bonus de XP</Text>
                     <Text style={styles.modalXpBonus}>+{selectedBadge.xpBonus} XP</Text>
                   </View>
                 </View>
@@ -410,7 +460,7 @@ const ProfileScreen: React.FC = () => {
                   mode="contained"
                   onPress={() => setBadgeModalVisible(false)}
                   style={styles.modalCloseButton}
-                  buttonColor={COLORS.child.primary}
+                  buttonColor={PURPLE_THEME.primary}
                 >
                   Fechar
                 </Button>
@@ -419,59 +469,66 @@ const ProfileScreen: React.FC = () => {
           )}
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.child.background,
+    backgroundColor: '#F5F5F5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.child.background,
+    backgroundColor: '#F5F5F5',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
     color: '#666',
   },
+
+  // Header
   header: {
+    backgroundColor: PURPLE_THEME.primary,
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 30,
     alignItems: 'center',
-    paddingVertical: 24,
-    backgroundColor: COLORS.child.primary,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    marginBottom: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
-  avatar: {
-    backgroundColor: '#FF6B6B',
-    marginBottom: 12,
-  },
-  avatarLabel: {
-    fontSize: 36,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 20,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 12,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#FFF',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarEmoji: {
-    fontSize: 64,
+    fontSize: 70,
   },
   editBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 4,
+    right: 4,
     backgroundColor: '#4CAF50',
     width: 32,
     height: 32,
@@ -485,139 +542,258 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  userEmail: {
-    fontSize: 16,
-    color: '#E3F2FD',
+  badgesIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  levelCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+  badgeIndicatorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFC107',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  badgeIndicatorEmoji: {
+    fontSize: 18,
+    marginRight: 4,
+  },
+  badgeIndicatorCount: {
     backgroundColor: '#fff',
-    elevation: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  badgeIndicatorCountText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+
+  // Content
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  // Level Card
+  levelCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   levelHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  levelLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  levelIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFC107',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   levelTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: 12,
   },
-  xpText: {
-    fontSize: 16,
+  levelXp: {
+    fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    fontWeight: '600',
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: '#F3E5F5',
+    borderRadius: 6,
+    position: 'relative',
+    marginBottom: 12,
+    overflow: 'visible',
   },
   progressBar: {
-    height: 12,
+    height: '100%',
+    backgroundColor: PURPLE_THEME.primary,
     borderRadius: 6,
-    backgroundColor: '#E0E0E0',
+  },
+  progressDot: {
+    position: 'absolute',
+    top: '50%',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E1BEE7',
+    transform: [{ translateY: -4 }, { translateX: -4 }],
   },
   xpNeeded: {
     fontSize: 14,
-    color: '#4CAF50',
-    marginTop: 8,
-    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
   },
+
+  // Stats Grid
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 12,
+    gap: 12,
     marginBottom: 16,
   },
   statCard: {
-    width: '48%',
-    margin: '1%',
+    flex: 1,
+    minWidth: '47%',
+    maxWidth: '48%',
     backgroundColor: '#fff',
-    elevation: 3,
-  },
-  statContent: {
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
+    marginBottom: 4,
+    color: PURPLE_THEME.primary,
   },
   statLabel: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
-  badgesCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+
+  // Achievements Card
+  achievementsCard: {
     backgroundColor: '#fff',
-    elevation: 4,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  badgesTitle: {
-    fontSize: 20,
+  achievementsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  achievementsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  achievementsEmoji: {
+    fontSize: 24,
+  },
+  achievementsTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
   },
-  badgesGrid: {
+  achievementsCount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  badgeItem: {
-    width: '30%',
+  achievementItem: {
+    width: '23%',
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: '#FFF9C4',
+    marginBottom: 16,
   },
-  badgeItemLocked: {
+  achievementIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  achievementIconUnlocked: {
+    backgroundColor: '#FFF8E1',
+  },
+  achievementIconLocked: {
     backgroundColor: '#F5F5F5',
   },
-  badgeName: {
-    fontSize: 12,
+  achievementName: {
+    fontSize: 11,
     color: '#333',
     textAlign: 'center',
-    marginTop: 6,
     fontWeight: '500',
+    lineHeight: 14,
   },
-  badgeNameLocked: {
+  achievementNameLocked: {
     color: '#999',
   },
-  emptyBadges: {
+  emptyAchievements: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 24,
   },
-  emptyBadgesText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptyBadgesHint: {
+  emptyAchievementsText: {
     fontSize: 14,
     color: '#999',
-    marginTop: 8,
+    marginTop: 12,
     textAlign: 'center',
-    paddingHorizontal: 20,
   },
+
+  // Logout Button
   logoutButton: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FCE4EC',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+    marginBottom: 16,
   },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E91E63',
+  },
+
   bottomSpacer: {
-    height: 32,
+    height: 20,
   },
+
   snackbar: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: PURPLE_THEME.primary,
   },
-  // Estilos do Modal de Badge
+
+  // Modal styles
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

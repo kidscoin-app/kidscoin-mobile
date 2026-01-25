@@ -31,4 +31,6 @@ export interface Gamification {
   xpForNextLevel: number;
   xpNeededForNextLevel: number;
   badges: Badge[];
+  currentStreak: number;
+  longestStreak: number;
 }
