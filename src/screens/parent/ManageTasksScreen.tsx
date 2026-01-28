@@ -9,7 +9,9 @@ import {
   View,
   TouchableOpacity,
   ScrollView as HorizontalScroll,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Button,
   Chip,
@@ -80,7 +82,8 @@ const ManageTasksScreen: React.FC = () => {
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('DAILY');
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // UI State
   const [error, setError] = useState('');
@@ -197,7 +200,8 @@ const ManageTasksScreen: React.FC = () => {
     setRecurrenceType('DAILY');
     setSelectedWeekdays([]);
     setHasEndDate(false);
-    setEndDate('');
+    setEndDate(null);
+    setShowDatePicker(false);
   };
 
   /**
@@ -256,7 +260,7 @@ const ManageTasksScreen: React.FC = () => {
       recurrenceType: isRecurring ? recurrenceType : undefined,
       recurrenceDays:
         isRecurring && recurrenceType === 'WEEKLY' ? selectedWeekdays.join(',') : undefined,
-      recurrenceEndDate: isRecurring && hasEndDate && endDate ? endDate : undefined,
+      recurrenceEndDate: isRecurring && hasEndDate && endDate ? formatDate(endDate) : undefined,
     });
   };
 
@@ -324,6 +328,29 @@ const ManageTasksScreen: React.FC = () => {
     setSelectedWeekdays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
+  };
+
+  /**
+   * Formatar data para AAAA-MM-DD
+   */
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  /**
+   * Handler para mudança de data no picker
+   */
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    // No Android, fechar após selecionar. No iOS, manter aberto até clicar em "Confirmar"
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(selectedDate);
+    }
   };
 
   /**
@@ -711,6 +738,9 @@ const ManageTasksScreen: React.FC = () => {
               value={isRecurring}
               onValueChange={setIsRecurring}
               color={COLORS.parent.primary}
+              trackColor={{ false: 'rgba(156, 39, 176, 0.3)', true: COLORS.parent.primary }}
+              ios_backgroundColor={'rgba(156, 39, 176, 0.3)'}
+              thumbColor='#FFFFFF'
             />
           </View>
 
@@ -755,23 +785,56 @@ const ManageTasksScreen: React.FC = () => {
                   <Text style={styles.sublabel}>Definir data final</Text>
                   <Switch
                     value={hasEndDate}
-                    onValueChange={setHasEndDate}
+                    onValueChange={(value) => {
+                      setHasEndDate(value);
+                      if (!value) {
+                        setEndDate(null);
+                        setShowDatePicker(false);
+                      }
+                    }}
                     color={COLORS.parent.primary}
+                    trackColor={{ false: 'rgba(156, 39, 176, 0.3)', true: COLORS.parent.primary }}
+                    thumbColor='#FFFFFF'
                   />
                 </View>
 
                 {hasEndDate && (
-                  <TextInput
-                    value={endDate}
-                    onChangeText={setEndDate}
-                    mode="outlined"
-                    placeholder="AAAA-MM-DD"
-                    style={styles.input}
-                    left={<TextInput.Icon icon="calendar" />}
-                    outlineColor={COLORS.common.border}
-                    activeOutlineColor={COLORS.parent.primary}
-                    outlineStyle={styles.inputOutline}
-                  />
+                  <>
+                    <TouchableOpacity
+                      style={styles.datePickerButton}
+                      onPress={() => setShowDatePicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="calendar" size={20} color={COLORS.parent.primary} />
+                      <Text style={styles.datePickerButtonText}>
+                        {endDate ? formatDate(endDate) : 'Selecionar data final'}
+                      </Text>
+                      <MaterialCommunityIcons name="chevron-down" size={20} color={COLORS.common.textLight} />
+                    </TouchableOpacity>
+
+                    {showDatePicker && (
+                      <View style={styles.datePickerContainer}>
+                        <DateTimePicker
+                          value={endDate || new Date()}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={onDateChange}
+                          minimumDate={new Date()}
+                          themeVariant="light"
+                          style={styles.datePicker}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            style={styles.datePickerDoneButton}
+                            onPress={() => setShowDatePicker(false)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.datePickerDoneButtonText}>Confirmar</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             </View>
@@ -1202,6 +1265,46 @@ const styles = StyleSheet.create({
   },
   endDateSection: {
     marginTop: 8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: COLORS.common.border,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  datePickerButtonText: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.common.text,
+  },
+  datePickerContainer: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    marginTop: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  datePicker: {
+    width: '100%',
+    backgroundColor: '#F5F5F5',
+  },
+  datePickerDoneButton: {
+    backgroundColor: COLORS.parent.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    marginTop: 12,
+  },
+  datePickerDoneButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   createButton: {
     flexDirection: 'row',
