@@ -3,7 +3,7 @@
  * Migrado para React Query
  */
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ScrollView as HorizontalScroll } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ScrollView as HorizontalScroll, Dimensions } from 'react-native';
 import { Text, ActivityIndicator, Badge, Chip, Portal, Dialog, TextInput, Button, Snackbar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -35,6 +35,9 @@ type PendingAction = {
   xpValue?: number;
   originalData: TaskAssignment | Redemption;
 };
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const IS_SMALL_SCREEN = SCREEN_WIDTH < 390;
 
 const ParentDashboardScreen: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -563,12 +566,16 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 12,
     marginTop: -15,
     gap: 8,
   },
   statCard: {
-    flex: 1,
+    flex: IS_SMALL_SCREEN ? undefined : 1,
+    width: IS_SMALL_SCREEN ? `${(100 - 2.5) / 2}%` : undefined,
+    minWidth: IS_SMALL_SCREEN ? `${(100 - 2.5) / 2}%` : undefined,
+    maxWidth: IS_SMALL_SCREEN ? `${(100 - 2.5) / 2}%` : undefined,
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingVertical: 16,
@@ -579,6 +586,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    marginBottom: IS_SMALL_SCREEN ? 8 : 0,
   },
   statCardHighlighted: {
     backgroundColor: '#E8F5E9',
