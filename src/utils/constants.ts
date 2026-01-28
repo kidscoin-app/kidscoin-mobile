@@ -3,7 +3,6 @@
  */
 
 // URL da API
-// export const API_URL = "https://kidscoin-api-production.up.railway.app/api"
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 // Chaves do AsyncStorage
