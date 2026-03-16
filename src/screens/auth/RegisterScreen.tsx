@@ -107,7 +107,7 @@ const RegisterScreen: React.FC = () => {
           <TextInput
             label="Email"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => setEmail(text.toLowerCase())}
             mode="outlined"
             keyboardType="email-address"
             autoCapitalize="none"
